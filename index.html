@@ -209,6 +209,8 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .gal-edit .t img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid var(--khaki-dim)}
 .gal-edit .t button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.75);color:#fff;font-size:14px;line-height:24px;cursor:pointer;padding:0}
 .gal-add{display:block;margin-top:8px;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
+#toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#2c2a15;border:1px solid var(--khaki);color:var(--khaki-light);padding:12px 18px;border-radius:8px;font-size:16px;z-index:500;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
 footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:2px;color:var(--text);border-top:1px solid var(--border);flex-shrink:0}
 </style>
 </head>
@@ -821,11 +823,32 @@ function setAdmin(on){
   updateSaveBar();
 }
 function adminToggle(){
-  if(IS_ADMIN){setAdmin(false);document.getElementById('overlay').classList.remove('open');return;}
-  const p=prompt('Managers & administrators: enter the passcode');
-  if(p===null)return;
-  if(cyrb53(p.trim().toUpperCase())===ADMIN_HASH){setAdmin(true);alert('Signed in. Tap any officer to see the Edit button.');}
-  else alert('That passcode is not correct.');
+  if(IS_ADMIN){setAdmin(false);document.getElementById('overlay').classList.remove('open');toast('Signed out.');return;}
+  document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
+    <h3>🔒 ADMINISTRATOR SIGN-IN</h3>
+    <label>PASSCODE</label>
+    <input id="admPass" type="password" autocomplete="current-password" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
+    <div class="err" id="admErr"></div>
+    <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" id="admGo" onclick="tryAdmin()">SIGN IN</button></div>
+  </div>`;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').scrollTop=0;
+  setTimeout(()=>document.getElementById('admPass').focus(),50);
+}
+function tryAdmin(){
+  const p=document.getElementById('admPass').value;
+  if(cyrb53(p.trim().toUpperCase())===ADMIN_HASH){
+    setAdmin(true);document.getElementById('overlay').classList.remove('open');
+    toast('Signed in. Tap any officer to see the Edit button.');
+  }else{
+    document.getElementById('admErr').textContent='That passcode is not correct.';
+    document.getElementById('admPass').select();
+  }
+}
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}
+  t.textContent=msg;t.className='show';clearTimeout(t._h);t._h=setTimeout(()=>t.className='',3500);
 }
 
 // ── EDITING ───────────────────────────────────────────────────
@@ -1139,7 +1162,7 @@ async function publishToSite(){
     if(!put.ok)throw new Error('GitHub answered '+put.status);
     EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
     PUBLISHING=false;updateSaveBar();
-    alert('Published! The website will show your changes in about 1 to 2 minutes.');
+    toast('Published! The website will show your changes in about 1 to 2 minutes.');
   }catch(e){
     PUBLISHING=false;updateSaveBar();
     alert('Could not publish right now ('+e.message+'). Your changes are still saved on this computer. Check your internet connection and click Publish again.');
