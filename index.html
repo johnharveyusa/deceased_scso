@@ -190,7 +190,10 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .ph-btns{display:flex;flex-direction:column;gap:6px;flex:1}
 .ph-btns label.pick,.ph-btns button{display:block;margin:0;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 .ph-btns button{border-color:var(--khaki-dim);background:transparent;color:var(--text)}
-#addOfficerBtn{display:none;width:100%;margin-top:8px;padding:11px;border-radius:6px;border:2px solid var(--khaki);background:rgba(212,196,132,.16);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:13px;font-weight:600;letter-spacing:3px;cursor:pointer}
+#adminTools{display:none;gap:8px;margin-top:8px}
+#howtoBtn{flex:0 0 auto;padding:11px 16px;border-radius:6px;border:1px solid var(--khaki-dim);background:transparent;color:var(--text-bright);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;cursor:pointer}
+.howto-video{width:100%;border-radius:8px;border:1px solid var(--khaki-dim);background:#000;margin-top:6px}
+#addOfficerBtn{display:block;flex:1;width:auto;margin-top:0;padding:11px;border-radius:6px;border:2px solid var(--khaki);background:rgba(212,196,132,.16);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:13px;font-weight:600;letter-spacing:3px;cursor:pointer}
 #addOfficerBtn:hover{background:rgba(212,196,132,.28)}
 .d-edit select{width:100%;background:#0e110a;border:1px solid var(--border);border-radius:5px;padding:9px 10px;color:var(--text-bright);font-family:'Crimson Pro',serif;font-size:16px;outline:none}
 .d-remove{margin-top:14px;width:100%;padding:10px;border-radius:6px;border:1px solid rgba(155,32,32,.6);background:transparent;color:var(--lod-text);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
@@ -246,7 +249,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
     <input type="text" id="searchInput" placeholder="Search by name, notes or S-number..." oninput="render()">
   </div>
   <div class="pills" id="pills"></div>
-  <button id="addOfficerBtn" onclick="showAddForm()">＋ ADD OFFICER</button>
+  <div id="adminTools"><button id="addOfficerBtn" onclick="showAddForm()">＋ ADD OFFICER</button><button id="howtoBtn" onclick="showHowTo()">▶ HOW-TO VIDEO</button></div>
 </div>
 
 <div class="list-wrap" id="listWrap"></div>
@@ -256,7 +259,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
   <div class="panel" id="panel">
     <div class="handle"></div>
     <div id="panelContent"></div>
-    <button class="btn-close" onclick="document.getElementById('overlay').classList.remove('open')">✕ &nbsp;&nbsp;CLOSE</button>
+    <button class="btn-close" onclick="stopVideos();document.getElementById('overlay').classList.remove('open')">✕ &nbsp;&nbsp;CLOSE</button>
   </div>
 </div>
 
@@ -803,9 +806,10 @@ function showDetail(idx){
   document.getElementById('panel').scrollTop=0;
 }
 
+function stopVideos(){document.querySelectorAll('#panel video').forEach(v=>v.pause());}
 function closeDetail(e){
   if(e&&e.target!==document.getElementById('overlay'))return;
-  document.getElementById('overlay').classList.remove('open');
+  stopVideos();document.getElementById('overlay').classList.remove('open');
 }
 
 // ── ADMIN SIGN-IN ─────────────────────────────────────────────
@@ -819,7 +823,7 @@ function setAdmin(on){
   IS_ADMIN=on;
   try{on?sessionStorage.setItem('scso_eow_admin','1'):sessionStorage.removeItem('scso_eow_admin');}catch(e){}
   document.getElementById('adminLink').textContent=on?'🔓 SIGN OUT':'🔒 ADMIN SIGN-IN';
-  document.getElementById('addOfficerBtn').style.display=on?'block':'none';
+  document.getElementById('adminTools').style.display=on?'flex':'none';
   updateSaveBar();
 }
 function adminToggle(){
@@ -830,10 +834,20 @@ function adminToggle(){
     <input id="admPass" type="password" autocomplete="current-password" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
     <div class="err" id="admErr"></div>
     <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" id="admGo" onclick="tryAdmin()">SIGN IN</button></div>
+    <p style="margin-top:14px;text-align:center"><a href="#" onclick="showHowTo();return false" style="color:var(--khaki-light);font-size:15px">▶ Watch the 2-minute how-to video</a></p>
   </div>`;
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').scrollTop=0;
   setTimeout(()=>document.getElementById('admPass').focus(),50);
+}
+function showHowTo(){
+  document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
+    <h3>▶ HOW TO SIGN IN AND UPDATE AN OFFICER</h3>
+    <video class="howto-video" src="howto.mp4" controls playsinline preload="metadata"></video>
+    <div class="hint" style="margin-top:8px">About 2 minutes. Shows signing in, editing an officer, publishing, and adding a new officer.</div>
+  </div>`;
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('panel').scrollTop=0;
 }
 function tryAdmin(){
   const p=document.getElementById('admPass').value;
