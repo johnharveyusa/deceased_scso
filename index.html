@@ -197,6 +197,18 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .d-setup ol{margin:8px 0 8px 20px;font-size:16px;line-height:1.55;color:var(--text-bright)}
 .d-setup a{color:var(--khaki-light)}
 .d-setup b{color:var(--khaki)}
+.d-gal{margin-top:14px;background:rgba(14,17,10,.6);border:1px solid var(--khaki-dim);border-radius:8px;padding:14px 16px}
+.d-gal h4{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--khaki);margin-bottom:10px;font-weight:600}
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.gal-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#0e110a}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
+#lightbox.open{display:flex}
+#lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+.gal-edit{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:4px}
+.gal-edit .t{position:relative}
+.gal-edit .t img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid var(--khaki-dim)}
+.gal-edit .t button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.75);color:#fff;font-size:14px;line-height:24px;cursor:pointer;padding:0}
+.gal-add{display:block;margin-top:8px;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:2px;color:var(--text);border-top:1px solid var(--border);flex-shrink:0}
 </style>
 </head>
@@ -218,6 +230,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
   <span id="sheetMsg">DATA SOURCE: EMBEDDED</span>
 </div>
 
+<div id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
 <div id="saveBar">
   <span id="saveMsg"></span>
   <button onclick="publishToSite()">⬆ PUBLISH TO WEBSITE</button>
@@ -667,6 +680,16 @@ function longDate(s){
   const m=String(s||'').match(/^(\d\d)\/(\d\d)\/(\d{4})$/);if(!m)return s||'';
   return ['January','February','March','April','May','June','July','August','September','October','November','December'][+m[1]-1]+' '+(+m[2])+', '+m[3];
 }
+// Photos sent by the public go to this address; an administrator reviews them
+// and adds the good ones to the officer's gallery. The address is assembled
+// in pieces so spam robots can't easily read it from the page.
+const PHOTO_EMAIL=['johnharvey.usa','gmail.com'].join('@');
+function sendPhotoLink(o){
+  const subj='End of Watch photo: '+o.n+' ('+o.r+')';
+  const body='Please attach your photo(s) of '+o.n+' to this email.\n\nYour name:\nHow you knew him or her:\nWhen and where the photo was taken (if known):\n\nThank you. An administrator will review the photo and add it to the End of Watch memorial.';
+  return 'mailto:'+PHOTO_EMAIL+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
+}
+function openLightbox(src){document.getElementById('lightboxImg').src=src;document.getElementById('lightbox').classList.add('open');}
 function hostOf(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function safeUrl(u){u=String(u||'').trim();return /^https?:\/\//i.test(u)?u:'';}
@@ -743,7 +766,7 @@ function showDetail(idx){
     <div class="d-name">${o.n}</div>
     <div class="d-rank-line">${o.r.toUpperCase()}${o.lod?' &nbsp;·&nbsp; <span style="color:var(--lod-text)">LINE OF DUTY</span>':''}</div>
     ${o.e?`<div class="d-emp">${esc(o.e)}</div>`:`<div class="d-emp blank">EMPLOYEE NO. NOT YET ON FILE</div>`}
-    ${IS_ADMIN?`<button class="d-btn" style="margin:0 0 14px;justify-content:center;border-color:var(--khaki);background:rgba(212,196,132,.14)" id="editToggle" onclick="toggleEdit(${idx})">✎ &nbsp;EDIT PHOTO, NO., DATE, LINKS &amp; OBITUARY</button>
+    ${IS_ADMIN?`<button class="d-btn" style="margin:0 0 14px;justify-content:center;border-color:var(--khaki);background:rgba(212,196,132,.14)" id="editToggle" onclick="toggleEdit(${idx})">✎ &nbsp;EDIT THIS OFFICER</button>
     <div id="editBox"></div>`:''}
     <div class="d-divider"></div>
     <div class="d-grid">
@@ -758,8 +781,11 @@ function showDetail(idx){
       ${o.obt.length>900?`<button class="more" onclick="const t=document.getElementById('obitTxt');t.classList.toggle('clip');this.textContent=t.classList.contains('clip')?'READ FULL OBITUARY ▾':'SHOW LESS ▴'">READ FULL OBITUARY ▾</button>`:''}
       ${o.ob?`<div class="src">Source: <a href="${esc(safeUrl(o.ob))}" target="_blank" rel="noopener">${esc(hostOf(o.ob))}</a></div>`:''}
     </div>`:''}
+    ${(o.gal&&o.gal.length)?`<div class="d-gal"><h4>PHOTOS (${o.gal.length})</h4><div class="gal-grid">${o.gal.map((g,i)=>`<img src="${esc(g)}" loading="lazy" alt="Photo ${i+1} of ${esc(o.n)}" onclick="openLightbox(this.src)">`).join('')}</div></div>`:''}
     <div class="d-actions">
-      <a class="d-btn primary" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
+      <a class="d-btn primary" href="${esc(sendPhotoLink(o))}">
+        <span class="ic">✉️</span><span>SEND A PHOTO OF THIS OFFICER<small>Opens your email · attach the picture · an administrator adds it here</small></span></a>
+      <a class="d-btn" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📜</span><span>${o.ob?'ORIGINAL OBITUARY PAGE':'FIND OBITUARY ONLINE'}<small>${o.ob?'Opens the funeral home or newspaper page':'Opens a web search for his obituary'}</small></span></a>
@@ -824,9 +850,9 @@ function insertOfficer(rec){
 }
 function applyEdits(){
   EDITS=loadEdits();
-  Object.entries(EDITS).forEach(([n,x])=>{if(x&&x.add&&!DATA.some(o=>o.n===n))insertOfficer(Object.assign({e:'',ob:'',fb:'',dod:'',obt:'',ph:'',y:null,lod:false,notes:''},x.add));});
+  Object.entries(EDITS).forEach(([n,x])=>{if(!x||!x.add)return;const ex=DATA.find(o=>o.n===n);if(ex)Object.assign(ex,x.add);else insertOfficer(Object.assign({e:'',ob:'',fb:'',dod:'',obt:'',ph:'',y:null,lod:false,notes:''},x.add));});
   Object.entries(EDITS).forEach(([n,x])=>{if(x&&x.del){const i=DATA.findIndex(o=>o.n===n);if(i>=0)DATA.splice(i,1);}});
-  DATA.forEach(o=>{const x=EDITS[o.n];if(x&&!x.del&&'e' in x){o.e=x.e;o.ob=x.ob;o.fb=x.fb;o.obt=x.obt||o.obt||'';if('ph' in x)o.ph=x.ph;if('y' in x){o.dod=x.dod||'';o.y=x.y;}}});
+  DATA.forEach(o=>{const x=EDITS[o.n];if(x&&!x.del&&'e' in x){o.e=x.e;o.ob=x.ob;o.fb=x.fb;o.obt=x.obt||o.obt||'';if('ph' in x)o.ph=x.ph;if('gal' in x)o.gal=x.gal;if('y' in x){o.dod=x.dod||'';o.y=x.y;}}});
   updateSaveBar();
 }
 function updateSaveBar(){
@@ -849,6 +875,17 @@ function toggleEdit(idx){
       </div>
     </div>
     <div class="hint">Choose a picture saved on this computer, or click in the obituary box below and paste a copied picture (Ctrl + V).</div>
+    <label>MORE PHOTOS (GALLERY)</label>
+    <div class="gal-edit" id="galEdit"></div>
+    <label class="gal-add">＋ ADD PHOTOS<input type="file" accept="image/*" multiple style="display:none" onchange="addGalleryPhotos(this.files);this.value=''"></label>
+    <div class="hint">Add photos people send in. You can pick several at once. Tap × to remove one.</div>
+    <label>FULL NAME</label>
+    <input id="edN" value="${esc(o.n)}" autocomplete="off">
+    <label>RANK</label>
+    <select id="edR">${RANK_ORDER.map(r=>`<option${r===o.r?' selected':''}>${r}</option>`).join('')}</select>
+    <label>NOTE (OPTIONAL)</label>
+    <input id="edNo" value="${esc(o.notes)}" placeholder="e.g. Later police chief of ..." autocomplete="off">
+    <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="edL" style="width:auto"${o.lod?' checked':''}> DIED IN THE LINE OF DUTY</label>
     <label>EMPLOYEE NO.</label>
     <input id="edE" value="${esc(o.e)}" placeholder="S-1234" autocomplete="off">
     <div class="hint">Type 1234 or S-1234. Leave blank if unknown.</div>
@@ -868,15 +905,28 @@ function toggleEdit(idx){
     <button class="d-remove" onclick="removeOfficer(${idx})">REMOVE THIS OFFICER FROM THE LIST</button>
   </div>`;
   PH_PENDING=undefined;
+  GAL_PENDING=(o.gal||[]).slice();renderGalEdit();
   document.getElementById('edE').focus();
 }
+let GAL_PENDING=[];
+function renderGalEdit(){
+  const el=document.getElementById('galEdit');if(!el)return;
+  el.innerHTML=GAL_PENDING.length?GAL_PENDING.map((g,i)=>`<div class="t"><img src="${esc(g)}" alt=""><button type="button" title="Remove" onclick="GAL_PENDING.splice(${i},1);renderGalEdit()">×</button></div>`).join(''):'<div class="hint" style="grid-column:1/-1">No gallery photos yet.</div>';
+}
+async function addGalleryPhotos(files){
+  const err=document.getElementById('edErr');
+  for(const f of [...files]){
+    try{GAL_PENDING.push(await shrinkPhoto(f,1000));}catch(e){err.textContent='One of the files was not a picture we can use.';}
+  }
+  renderGalEdit();
+}
 let PH_PENDING;  // undefined = unchanged, '' = removed, data URL = new photo
-function shrinkPhoto(file){
+function shrinkPhoto(file,max=480){
   return new Promise((res,rej)=>{
     if(!file||!/^image\//.test(file.type)){rej(new Error('Not a picture'));return;}
     const r=new FileReader();
     r.onload=()=>{const im=new Image();im.onload=()=>{
-      const max=480,s=Math.min(1,max/Math.max(im.width,im.height));
+      const s=Math.min(1,max/Math.max(im.width,im.height));
       const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);
       const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
       res(c.toDataURL('image/jpeg',0.8));};im.onerror=()=>rej(new Error('Could not read picture'));im.src=r.result;};
@@ -903,6 +953,10 @@ function saveEdit(idx){
   const ob=document.getElementById('edOb').value.trim();
   const fb=document.getElementById('edFb').value.trim();
   const obt=cleanObit(document.getElementById('edObt').value);
+  const nn=document.getElementById('edN').value.replace(/\s+/g,' ').trim();
+  const nr=document.getElementById('edR').value;
+  const nno=document.getElementById('edNo').value.trim();
+  const nlod=document.getElementById('edL').checked;
   const dRaw=document.getElementById('edD').value.trim();
   const err=document.getElementById('edErr');
   let dod='',y=null;
@@ -920,9 +974,25 @@ function saveEdit(idx){
   if(ob&&!safeUrl(ob)){err.textContent='Obituary link must start with https:// or http://';return;}
   if(fb&&!safeUrl(fb)){err.textContent='Facebook link must start with https://';return;}
   if(obt.length>30000){err.textContent='Obituary text is very long. Please trim menus, ads and comments.';return;}
+  if(nn.length<3){err.textContent='Please type the officer\'s full name.';return;}
+  if(nn.toLowerCase()!==o.n.toLowerCase()&&DATA.some(x=>x.n.toLowerCase()===nn.toLowerCase())){err.textContent='Another officer already has that name.';return;}
   const ph=PH_PENDING===undefined?(o.ph||''):PH_PENDING;
-  o.e=e;o.ob=ob;o.fb=fb;o.dod=dod;o.y=y;o.obt=obt;o.ph=ph;
-  EDITS[o.n]=Object.assign(EDITS[o.n]&&EDITS[o.n].add?{add:EDITS[o.n].add}:{},{e,ob,fb,dod,y,obt,ph});storeEdits(EDITS);updateSaveBar();
+  const gal=GAL_PENDING.slice();
+  const idChanged=nn!==o.n||nr!==o.r||nno!==(o.notes||'')||nlod!==!!o.lod;
+  o.e=e;o.ob=ob;o.fb=fb;o.dod=dod;o.y=y;o.obt=obt;o.ph=ph;o.gal=gal;
+  if(idChanged){
+    // name/rank/note change: record as remove-old + add-new so it publishes cleanly
+    const wasAdded=EDITS[o.n]&&EDITS[o.n].add;
+    if(wasAdded)delete EDITS[o.n];else EDITS[o.n]={del:true};
+    DATA.splice(idx,1);
+    const add={n:nn,r:nr,u:rankUnit(nr),lod:nlod,notes:nno};
+    const rec=Object.assign({},o,add);
+    idx=insertOfficer(rec);
+    if(EDITS[nn]&&EDITS[nn].del)delete EDITS[nn];
+    EDITS[nn]={add,e,ob,fb,dod,y,obt,ph,gal};
+  }else{
+    EDITS[o.n]=Object.assign(EDITS[o.n]&&EDITS[o.n].add?{add:EDITS[o.n].add}:{},{e,ob,fb,dod,y,obt,ph,gal});
+  }storeEdits(EDITS);updateSaveBar();
   buildPills();render();showDetail(idx);
 }
 function discardEdits(){
@@ -993,7 +1063,7 @@ function removeOfficer(idx){
 const GH_REPO='johnharveyusa/deceased_scso', GH_FILE='index.html', GH_KEY='scso_eow_gh_token';
 function ghToken(){try{return localStorage.getItem(GH_KEY)||'';}catch(e){return '';}}
 function buildPageSource(){
-  const lines=DATA.map(o=>`{n:${q(o.n)},r:${q(o.r)},u:${o.u},y:${o.y==null?'null':o.y},lod:${!!o.lod},notes:${q(o.notes)},e:${q(o.e)},ob:${q(o.ob)},fb:${q(o.fb)},dod:${q(o.dod)}${o.obt?',obt:'+q(o.obt):''}${o.ph?',ph:'+q(o.ph):''}}`);
+  const lines=DATA.map(o=>`{n:${q(o.n)},r:${q(o.r)},u:${o.u},y:${o.y==null?'null':o.y},lod:${!!o.lod},notes:${q(o.notes)},e:${q(o.e)},ob:${q(o.ob)},fb:${q(o.fb)},dod:${q(o.dod)}${o.obt?',obt:'+q(o.obt):''}${o.ph?',ph:'+q(o.ph):''}${(o.gal&&o.gal.length)?',gal:['+o.gal.map(q).join(',')+']':''}}`);
   let src=PAGE_SRC.replace(/const EMBEDDED = \[[\s\S]*?\n\];/,()=>'const EMBEDDED = [\n'+lines.join(',\n')+'\n];');
   const d=new Date(),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
   return src.replace(/LAST UPDATED \d\d\/\d\d\/\d{4}/,'LAST UPDATED '+mm+'/'+dd+'/'+d.getFullYear());
@@ -1044,6 +1114,24 @@ async function publishToSite(){
     }
     if(!cur.ok)throw new Error('GitHub answered '+cur.status);
     const sha=(await cur.json()).sha;
+    // new gallery photos go up as their own files so the page stays small
+    const base='https://api.github.com/repos/'+GH_REPO+'/contents/';
+    let up=0;
+    for(const o of DATA){
+      if(!o.gal)continue;
+      for(let i=0;i<o.gal.length;i++){
+        const g=o.gal[i];
+        if(!/^data:image\//.test(g))continue;
+        const slug=o.n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+        const path='photos/'+slug+'-'+Date.now().toString(36)+'-'+i+'.jpg';
+        msg.textContent='Publishing… uploading photo '+(++up);
+        const r=await fetch(base+path,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
+          body:JSON.stringify({message:'Photo for '+o.n,content:g.split(',')[1],branch:'main'})});
+        if(!r.ok)throw new Error('photo upload failed ('+r.status+')');
+        o.gal[i]=path;
+      }
+    }
+    Object.keys(EDITS).forEach(k=>{const x=EDITS[k];const o=DATA.find(d=>d.n===k);if(x&&x.gal&&o)x.gal=o.gal.slice();});storeEdits(EDITS);
     const n=Object.keys(EDITS).length;
     const put=await fetch(api,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
       body:JSON.stringify({message:'Memorial update: '+n+' change'+(n!==1?'s':''),content:toB64(buildPageSource()),sha,branch:'main'})});
