@@ -238,7 +238,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
 <div id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
 <div id="saveBar">
   <span id="saveMsg"></span>
-  <button onclick="publishToSite()">⬆ PUBLISH TO WEBSITE</button>
+  <button onclick="publishToSite()">⬆ TRY SAVING AGAIN</button>
   <button class="ghost" onclick="downloadUpdatedPage()">⬇ BACKUP COPY</button>
   <button class="ghost" onclick="discardEdits()">DISCARD</button>
 </div>
@@ -246,7 +246,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
 <div class="controls">
   <div class="search-wrap">
     <span class="s-icon">🔍</span>
-    <input type="text" id="searchInput" placeholder="Search by name, notes or S-number..." oninput="render()">
+    <input type="search" id="searchInput" name="eow-search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search by name, notes or S-number..." oninput="render()">
   </div>
   <div class="pills" id="pills"></div>
   <div id="adminTools"><button id="addOfficerBtn" onclick="showAddForm()">＋ ADD OFFICER</button><button id="howtoBtn" onclick="showHowTo()">▶ HOW-TO VIDEO</button></div>
@@ -761,8 +761,9 @@ function render(){
 }
 
 // ── DETAIL PANEL ──────────────────────────────────────────────
+let CUR_NAME=null;
 function showDetail(idx){
-  const o=DATA[idx];
+  const o=DATA[idx];CUR_NAME=o.n;
   const statusColor=o.lod?'color:var(--lod-text)':'color:var(--green-accent)';
   document.getElementById('panelContent').innerHTML=`
     <div class="badge-wrap">
@@ -831,7 +832,7 @@ function adminToggle(){
   document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
     <h3>🔒 ADMINISTRATOR SIGN-IN</h3>
     <label>PASSCODE</label>
-    <input id="admPass" type="password" autocomplete="current-password" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
+    <input id="admPass" type="password" name="eow-passcode" autocomplete="off" data-lpignore="true" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
     <div class="err" id="admErr"></div>
     <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" id="admGo" onclick="tryAdmin()">SIGN IN</button></div>
     <p style="margin-top:14px;text-align:center"><a href="#" onclick="showHowTo();return false" style="color:var(--khaki-light);font-size:15px">▶ Watch the 2-minute how-to video</a></p>
@@ -885,17 +886,25 @@ function insertOfficer(rec){
   if(after>=0){DATA.splice(after+1,0,rec);return after+1;}
   DATA.push(rec);return DATA.length-1;
 }
+const RECENT_KEY='scso_eow_recent_v1';
+function loadRecent(){try{const r=JSON.parse(localStorage.getItem(RECENT_KEY)||'null');return r&&Date.now()-r.t<15*60*1000?r.edits:{};}catch(e){return {};}}
+function rememberRecent(ed){try{const old=loadRecent();localStorage.setItem(RECENT_KEY,JSON.stringify({t:Date.now(),edits:Object.assign(old,ed)}));}catch(e){}}
 function applyEdits(){
+  mergeEdits(loadRecent());
   EDITS=loadEdits();
-  Object.entries(EDITS).forEach(([n,x])=>{if(!x||!x.add)return;const ex=DATA.find(o=>o.n===n);if(ex)Object.assign(ex,x.add);else insertOfficer(Object.assign({e:'',ob:'',fb:'',dod:'',obt:'',ph:'',y:null,lod:false,notes:''},x.add));});
-  Object.entries(EDITS).forEach(([n,x])=>{if(x&&x.del){const i=DATA.findIndex(o=>o.n===n);if(i>=0)DATA.splice(i,1);}});
-  DATA.forEach(o=>{const x=EDITS[o.n];if(x&&!x.del&&'e' in x){o.e=x.e;o.ob=x.ob;o.fb=x.fb;o.obt=x.obt||o.obt||'';if('ph' in x)o.ph=x.ph;if('gal' in x)o.gal=x.gal;if('y' in x){o.dod=x.dod||'';o.y=x.y;}}});
+  mergeEdits(EDITS);
   updateSaveBar();
+}
+function mergeEdits(ED){
+  Object.entries(ED).forEach(([n,x])=>{if(!x||!x.add)return;const ex=DATA.find(o=>o.n===n);if(ex)Object.assign(ex,x.add);else insertOfficer(Object.assign({e:'',ob:'',fb:'',dod:'',obt:'',ph:'',y:null,lod:false,notes:''},x.add));});
+  Object.entries(ED).forEach(([n,x])=>{if(x&&x.del){const i=DATA.findIndex(o=>o.n===n);if(i>=0)DATA.splice(i,1);}});
+  DATA.forEach(o=>{const x=ED[o.n];if(x&&!x.del&&'e' in x){o.e=x.e;o.ob=x.ob;o.fb=x.fb;o.obt=x.obt||o.obt||'';if('ph' in x)o.ph=x.ph;if('gal' in x)o.gal=x.gal;if('y' in x){o.dod=x.dod||'';o.y=x.y;}}});
 }
 function updateSaveBar(){
   const n=Object.keys(EDITS).length;
-  document.getElementById('saveBar').classList.toggle('show',IS_ADMIN&&n>0);
-  document.getElementById('saveMsg').textContent=n+' change'+(n!==1?'s':'')+' not yet on the website';
+  const busy=typeof PUBLISHING!=='undefined'&&PUBLISHING;
+  document.getElementById('saveBar').classList.toggle('show',IS_ADMIN&&(n>0||busy));
+  document.getElementById('saveMsg').textContent=busy?'Saving to the website…':(n+' change'+(n!==1?'s':'')+' not saved to the website yet');
 }
 function toggleEdit(idx){
   const box=document.getElementById('editBox');
@@ -1031,6 +1040,7 @@ function saveEdit(idx){
     EDITS[o.n]=Object.assign(EDITS[o.n]&&EDITS[o.n].add?{add:EDITS[o.n].add}:{},{e,ob,fb,dod,y,obt,ph,gal});
   }storeEdits(EDITS);updateSaveBar();
   buildPills();render();showDetail(idx);
+  publishToSite();
 }
 function discardEdits(){
   if(!confirm('Discard all unsaved edits on this device?'))return;
@@ -1084,6 +1094,7 @@ function saveNewOfficer(){
   const idx=insertOfficer(rec);
   EDITS[n]={add,e:'',ob,fb:'',dod,y,obt:'',ph:''};storeEdits(EDITS);updateSaveBar();
   buildPills();render();showDetail(idx);
+  publishToSite();
 }
 function removeOfficer(idx){
   const o=DATA[idx];
@@ -1092,6 +1103,7 @@ function removeOfficer(idx){
   DATA.splice(idx,1);storeEdits(EDITS);updateSaveBar();
   document.getElementById('overlay').classList.remove('open');
   buildPills();render();
+  publishToSite();
 }
 
 // ── PUBLISH STRAIGHT TO THE WEBSITE (GitHub) ──────────────────
@@ -1099,87 +1111,108 @@ function removeOfficer(idx){
 // is kept only in that administrator's browser, never in this page.
 const GH_REPO='johnharveyusa/deceased_scso', GH_FILE='index.html', GH_KEY='scso_eow_gh_token';
 function ghToken(){try{return localStorage.getItem(GH_KEY)||'';}catch(e){return '';}}
-function buildPageSource(){
+function buildPageSource(base){
   const lines=DATA.map(o=>`{n:${q(o.n)},r:${q(o.r)},u:${o.u},y:${o.y==null?'null':o.y},lod:${!!o.lod},notes:${q(o.notes)},e:${q(o.e)},ob:${q(o.ob)},fb:${q(o.fb)},dod:${q(o.dod)}${o.obt?',obt:'+q(o.obt):''}${o.ph?',ph:'+q(o.ph):''}${(o.gal&&o.gal.length)?',gal:['+o.gal.map(q).join(',')+']':''}}`);
-  let src=PAGE_SRC.replace(/const EMBEDDED = \[[\s\S]*?\n\];/,()=>'const EMBEDDED = [\n'+lines.join(',\n')+'\n];');
+  let src=(base||PAGE_SRC).replace(/const EMBEDDED = \[[\s\S]*?\n\];/,()=>'const EMBEDDED = [\n'+lines.join(',\n')+'\n];');
   const d=new Date(),mm=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');
   return src.replace(/LAST UPDATED \d\d\/\d\d\/\d{4}/,'LAST UPDATED '+mm+'/'+dd+'/'+d.getFullYear());
 }
+function fromB64(b64){const s=atob(b64.replace(/\s/g,''));const b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return new TextDecoder().decode(b);}
 function toB64(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
 function showKeySetup(){
   document.getElementById('panelContent').innerHTML=`<div class="d-edit d-setup" style="margin-top:0">
-    <h3>ONE-TIME SETUP: CONNECT TO THE WEBSITE</h3>
-    <p style="font-size:16px;color:var(--text-bright)">So this page can publish changes for you, it needs a GitHub key. You only do this once on this computer.</p>
-    <ol>
-      <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub's new-key page</a> (sign in if asked).</li>
-      <li><b>Token name:</b> type <i>End of Watch</i>. <b>Expiration:</b> pick the longest choice.</li>
-      <li><b>Repository access:</b> choose <i>Only select repositories</i> and pick <b>deceased_scso</b>.</li>
-      <li><b>Permissions → Repository permissions → Contents:</b> set to <b>Read and write</b>.</li>
-      <li>Click <b>Generate token</b>, then copy the key it shows (it starts with <i>github_pat_</i>).</li>
+    <h3>ONE-TIME SETUP ON THIS COMPUTER</h3>
+    <p style="font-size:17px;color:var(--text-bright);line-height:1.5">To let this page save to the website, GitHub needs to give it a key. You do this <b>once</b>, then Save just works.</p>
+    <a href="https://github.com/settings/tokens/new?description=End%20of%20Watch%20memorial&scopes=public_repo&default_expires_at=none" target="_blank" rel="noopener"
+       style="display:block;text-align:center;margin:14px 0;padding:14px;border-radius:8px;background:#d4c484;color:#1a1a12;font-family:'Cinzel',serif;font-weight:700;letter-spacing:2px;text-decoration:none">1 · GET MY KEY FROM GITHUB ↗</a>
+    <ol start="2">
+      <li>On the GitHub page that opens (sign in if asked), scroll to the bottom and click the green <b>Generate token</b> button. If it asks about <b>Expiration</b>, choose <b>No expiration</b>.</li>
+      <li>Click the <b>copy</b> icon next to the key it shows (it starts with <i>ghp_</i>).</li>
+      <li>Come back here, paste it below, and click <b>Save</b>.</li>
     </ol>
     <label>PASTE THE KEY HERE</label>
-    <input id="ghTok" placeholder="github_pat_..." autocomplete="off">
+    <input id="ghTok" placeholder="ghp_..." autocomplete="off">
     <div class="err" id="ghErr"></div>
-    <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" onclick="saveKeyAndPublish()">SAVE &amp; PUBLISH</button></div>
+    <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" onclick="saveKeyAndPublish()">SAVE</button></div>
   </div>`;
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').scrollTop=0;
 }
 function saveKeyAndPublish(){
   const t=document.getElementById('ghTok').value.trim();
-  if(!/^(github_pat_|ghp_)/.test(t)){document.getElementById('ghErr').textContent='That doesn\'t look like a GitHub key. It should start with github_pat_';return;}
+  if(!/^(github_pat_|ghp_)/.test(t)){document.getElementById('ghErr').textContent='That doesn\'t look like a GitHub key. It should start with ghp_';return;}
   try{localStorage.setItem(GH_KEY,t);}catch(e){}
-  document.getElementById('overlay').classList.remove('open');
+  const i=CUR_NAME?DATA.findIndex(o=>o.n===CUR_NAME):-1;
+  if(i>=0)showDetail(i);else document.getElementById('overlay').classList.remove('open');
   publishToSite();
 }
 let PUBLISHING=false;
 async function publishToSite(){
-  if(!IS_ADMIN||PUBLISHING)return;
+  if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
   const tok=ghToken();
   if(!tok){showKeySetup();return;}
-  PUBLISHING=true;
-  const msg=document.getElementById('saveMsg');msg.textContent='Publishing…';
+  PUBLISHING=true;updateSaveBar();
+  const msg=document.getElementById('saveMsg');
   const api='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE;
+  const base='https://api.github.com/repos/'+GH_REPO+'/contents/';
   const hdr={'Authorization':'Bearer '+tok,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
+  const LOCAL=DATA;
   try{
-    const cur=await fetch(api+'?ref=main',{headers:hdr,cache:'no-store'});
-    if(cur.status===401||cur.status===403||cur.status===404){
-      try{localStorage.removeItem(GH_KEY);}catch(e){}
-      PUBLISHING=false;updateSaveBar();
-      alert('GitHub did not accept the key (it may have expired or lack permission). Please set it up again.');
-      showKeySetup();return;
-    }
-    if(!cur.ok)throw new Error('GitHub answered '+cur.status);
-    const sha=(await cur.json()).sha;
-    // new gallery photos go up as their own files so the page stays small
-    const base='https://api.github.com/repos/'+GH_REPO+'/contents/';
-    let up=0;
-    for(const o of DATA){
-      if(!o.gal)continue;
-      for(let i=0;i<o.gal.length;i++){
-        const g=o.gal[i];
-        if(!/^data:image\//.test(g))continue;
-        const slug=o.n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-        const path='photos/'+slug+'-'+Date.now().toString(36)+'-'+i+'.jpg';
-        msg.textContent='Publishing… uploading photo '+(++up);
-        const r=await fetch(base+path,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
-          body:JSON.stringify({message:'Photo for '+o.n,content:g.split(',')[1],branch:'main'})});
-        if(!r.ok)throw new Error('photo upload failed ('+r.status+')');
-        o.gal[i]=path;
+    for(let attempt=1;attempt<=3;attempt++){
+      const cur=await fetch(api+'?ref=main&t='+Date.now(),{headers:hdr,cache:'no-store'});
+      if(cur.status===401||cur.status===403||cur.status===404){
+        try{localStorage.removeItem(GH_KEY);}catch(e){}
+        PUBLISHING=false;DATA=LOCAL;updateSaveBar();
+        alert('GitHub did not accept the key (it may have expired). Please connect again. It only takes a minute.');
+        showKeySetup();return;
       }
+      if(!cur.ok)throw new Error('GitHub answered '+cur.status);
+      const info=await cur.json();
+      // start from the newest list on the website so nobody else's work is lost
+      let src=PAGE_SRC,list=null;
+      try{
+        src=fromB64(info.content);
+        const m=src.match(/const EMBEDDED = (\[[\s\S]*?\n\]);/);
+        list=new Function('return '+m[1])();
+      }catch(e){src=PAGE_SRC;list=null;}
+      DATA=list||LOCAL.slice();
+      mergeEdits(EDITS);
+      // new gallery photos go up as their own files so the page stays small
+      let up=0;
+      for(const o of DATA){
+        if(!o.gal)continue;
+        for(let i=0;i<o.gal.length;i++){
+          const g=o.gal[i];
+          if(!/^data:image\//.test(g))continue;
+          const slug=o.n.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+          const path='photos/'+slug+'-'+Date.now().toString(36)+'-'+i+'.jpg';
+          msg.textContent='Saving to the website… photo '+(++up);
+          const r=await fetch(base+path,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
+            body:JSON.stringify({message:'Photo for '+o.n,content:g.split(',')[1],branch:'main'})});
+          if(!r.ok)throw new Error('photo upload failed ('+r.status+')');
+          o.gal[i]=path;
+        }
+      }
+      Object.keys(EDITS).forEach(k=>{const x=EDITS[k];const o=DATA.find(d=>d.n===k);if(x&&x.gal&&o)x.gal=o.gal.slice();});storeEdits(EDITS);
+      const names=Object.keys(EDITS);
+      const put=await fetch(api,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
+        body:JSON.stringify({message:'Memorial update: '+names.slice(0,3).join(', ')+(names.length>3?' and '+(names.length-3)+' more':''),content:toB64(buildPageSource(src)),sha:info.sha,branch:'main'})});
+      if((put.status===409||put.status===422)&&attempt<3){DATA=LOCAL;await new Promise(r=>setTimeout(r,1200));continue;}
+      if(!put.ok)throw new Error('GitHub answered '+put.status);
+      rememberRecent(EDITS);
+      EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
+      PUBLISHING=false;updateSaveBar();
+      buildPills();render();
+      // refresh an open officer card so its buttons point at the right person
+      if(document.getElementById('overlay').classList.contains('open')&&CUR_NAME&&document.getElementById('editToggle')&&!document.getElementById('editBox').innerHTML){
+        const i=DATA.findIndex(o=>o.n===CUR_NAME);if(i>=0)showDetail(i);
+      }
+      toast('✓ Saved to the website. Everyone will see it within 1 to 2 minutes.');
+      return;
     }
-    Object.keys(EDITS).forEach(k=>{const x=EDITS[k];const o=DATA.find(d=>d.n===k);if(x&&x.gal&&o)x.gal=o.gal.slice();});storeEdits(EDITS);
-    const n=Object.keys(EDITS).length;
-    const put=await fetch(api,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
-      body:JSON.stringify({message:'Memorial update: '+n+' change'+(n!==1?'s':''),content:toB64(buildPageSource()),sha,branch:'main'})});
-    if(put.status===409||put.status===422){PUBLISHING=false;updateSaveBar();alert('Someone else published a change at the same moment. Click Publish again.');return;}
-    if(!put.ok)throw new Error('GitHub answered '+put.status);
-    EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
-    PUBLISHING=false;updateSaveBar();
-    toast('Published! The website will show your changes in about 1 to 2 minutes.');
   }catch(e){
-    PUBLISHING=false;updateSaveBar();
-    alert('Could not publish right now ('+e.message+'). Your changes are still saved on this computer. Check your internet connection and click Publish again.');
+    DATA=LOCAL;PUBLISHING=false;updateSaveBar();buildPills();render();
+    alert('Could not save to the website right now ('+e.message+'). Your change is kept on this computer. Check your internet connection, then click TRY SAVING AGAIN on the gold bar.');
   }
 }
 function downloadUpdatedPage(){
