@@ -828,7 +828,7 @@ let IS_ADMIN = false;
 function cyrb53(s,seed=7){let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
 function setAdmin(on){
   IS_ADMIN=on;
-  try{on?sessionStorage.setItem('scso_eow_admin','1'):sessionStorage.removeItem('scso_eow_admin');}catch(e){}
+  try{on?sessionStorage.setItem('scso_eow_admin','1'):(sessionStorage.removeItem('scso_eow_admin'),sessionStorage.removeItem('scso_eow_pass'));}catch(e){}
   document.getElementById('adminLink').textContent=on?'🔓 SIGN OUT':'🔒 ADMIN SIGN-IN';
   document.getElementById('adminTools').style.display=on?'flex':'none';
   updateSaveBar();
@@ -859,6 +859,7 @@ function showHowTo(){
 function tryAdmin(){
   const p=document.getElementById('admPass').value;
   if(cyrb53(p.trim().toUpperCase())===ADMIN_HASH){
+    try{sessionStorage.setItem('scso_eow_pass',p.trim());}catch(e){}
     setAdmin(true);document.getElementById('overlay').classList.remove('open');
     toast('Signed in. Tap any officer to see the Edit button.');
   }else{
@@ -1153,7 +1154,28 @@ function saveKeyAndPublish(){
   publishToSite();
 }
 let PUBLISHING=false;
+// ── SAVE THROUGH THE HELPER (no keys for administrators) ─────
+const SAVE_URL='https://scso-eow-helper.netlify.app/.netlify/functions/save';
 async function publishToSite(){
+  if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
+  let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}
+  if(!pass){setAdmin(false);alert('Please sign in again with the passcode, then click Save.');adminToggle();return;}
+  PUBLISHING=true;updateSaveBar();
+  try{
+    const r=await fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({passcode:pass,edits:EDITS})});
+    let j={};try{j=await r.json();}catch(e){}
+    if(r.status===401){PUBLISHING=false;updateSaveBar();setAdmin(false);alert('The passcode was not accepted. Please sign in again.');adminToggle();return;}
+    if(!r.ok||!j.ok)throw new Error(j.error||('helper answered '+r.status));
+    rememberRecent(EDITS);
+    EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
+    PUBLISHING=false;updateSaveBar();buildPills();render();
+    toast('✓ Saved to the website. Everyone will see it within 1 to 2 minutes.');
+  }catch(e){
+    PUBLISHING=false;updateSaveBar();
+    alert('Could not save to the website right now ('+e.message+'). Your change is kept on this computer. Click TRY SAVING AGAIN on the gold bar in a minute.');
+  }
+}
+async function publishWithKey(){
   if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
   const tok=ghToken();
   if(!tok){showKeySetup();return;}
