@@ -620,6 +620,7 @@ const EMBEDDED = [
 {n:"Mitch Zinn",r:"Patrolman",u:9,y:1996,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Russell Colthorpe",r:"Reserve",u:10,y:2025,lod:false,notes:"",e:"",ob:"",fb:"",dod:""}
 ];
+const BASE_JSON=JSON.stringify(EMBEDDED);
 
 // ── RANK ORDER ────────────────────────────────────────────────
 const RANK_ORDER=["Sheriff","Chief Deputy","CAO","Chief Inspector","Asst Chief","Inspector","Captain","Lieutenant","Sergeant","Patrolman","Reserve"];
@@ -1154,25 +1155,49 @@ function saveKeyAndPublish(){
   publishToSite();
 }
 let PUBLISHING=false;
-// ── SAVE THROUGH THE HELPER (no keys for administrators) ─────
-const SAVE_URL='https://scso-eow-helper.netlify.app/.netlify/functions/save';
+// ── SAVE THROUGH JOHN'S GOOGLE ACCOUNT (no keys for administrators) ──
+// GOOGLE_URL is the "Web app" address of the End of Watch helper in
+// John's Google account. The page reads the newest officer list from it
+// and sends administrators' edits to it with the passcode.
+const GOOGLE_URL='';
+async function googleCall(payload){
+  const r=await fetch(GOOGLE_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  if(!r.ok)throw new Error('Google answered '+r.status);
+  return r.json();
+}
+async function loadLive(){
+  if(!GOOGLE_URL)return;
+  try{
+    const r=await fetch(GOOGLE_URL+(GOOGLE_URL.includes('?')?'&':'?')+'t='+Date.now(),{cache:'no-store'});
+    const j=await r.json();
+    if(j&&Array.isArray(j.officers)&&j.officers.length){
+      DATA=j.officers;mergeEdits(EDITS);
+      setSheetStatus(true,'LIVE · '+DATA.length+' OFFICERS');
+      buildPills();render();
+    }
+  }catch(e){/* keep the built-in list */}
+}
 async function publishToSite(){
   if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
+  if(!GOOGLE_URL){alert('Saving to the website is still being set up. Your change is kept on this computer.');return;}
   let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}
   if(!pass){setAdmin(false);alert('Please sign in again with the passcode, then click Save.');adminToggle();return;}
   PUBLISHING=true;updateSaveBar();
   try{
-    const r=await fetch(SAVE_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({passcode:pass,edits:EDITS})});
-    let j={};try{j=await r.json();}catch(e){}
-    if(r.status===401){PUBLISHING=false;updateSaveBar();setAdmin(false);alert('The passcode was not accepted. Please sign in again.');adminToggle();return;}
-    if(!r.ok||!j.ok)throw new Error(j.error||('helper answered '+r.status));
-    rememberRecent(EDITS);
-    EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
+    let j=await googleCall({passcode:pass,edits:EDITS});
+    if(j&&j.needBase)j=await googleCall({passcode:pass,edits:EDITS,base:JSON.parse(BASE_JSON)});
+    if(j&&j.code===401){PUBLISHING=false;updateSaveBar();setAdmin(false);alert('The passcode was not accepted. Please sign in again.');adminToggle();return;}
+    if(!j||!j.ok)throw new Error((j&&j.error)||'no answer');
+    EDITS={};try{localStorage.removeItem(EDIT_KEY);localStorage.removeItem(RECENT_KEY);}catch(e){}
+    if(Array.isArray(j.officers)){DATA=j.officers;setSheetStatus(true,'LIVE · '+DATA.length+' OFFICERS');}
     PUBLISHING=false;updateSaveBar();buildPills();render();
-    toast('✓ Saved to the website. Everyone will see it within 1 to 2 minutes.');
+    if(document.getElementById('overlay').classList.contains('open')&&CUR_NAME&&document.getElementById('editToggle')&&!document.getElementById('editBox').innerHTML){
+      const i=DATA.findIndex(o=>o.n===CUR_NAME);if(i>=0)showDetail(i);
+    }
+    toast('✓ Saved. Everyone sees it right away.');
   }catch(e){
     PUBLISHING=false;updateSaveBar();
-    alert('Could not save to the website right now ('+e.message+'). Your change is kept on this computer. Click TRY SAVING AGAIN on the gold bar in a minute.');
+    alert('Could not save right now ('+e.message+'). Your change is kept on this computer. Click TRY SAVING AGAIN on the gold bar in a minute.');
   }
 }
 async function publishWithKey(){
@@ -1291,7 +1316,7 @@ function spaced(s){return s.split('').join(String.fromCharCode(8202));}
 
 // ── INIT ──────────────────────────────────────────────────────
 document.getElementById('hdrBadge').src=BADGE_SRC;
-loadSheet().then(()=>{if(!SHEET_ID)applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();});
+loadSheet().then(()=>{if(!SHEET_ID)applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();});
 </script>
 </body>
 </html>
