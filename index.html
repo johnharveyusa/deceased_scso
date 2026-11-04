@@ -653,6 +653,7 @@ async function loadSheet(){
       const match=RANK_ORDER.find(x=>x.toLowerCase()===r.toLowerCase());r=match||r;
       const dRaw=cell(c,iD);let dod='',y=null;
       if(/^\d{4}$/.test(dRaw))y=parseInt(dRaw);else if(dRaw){dod=fmtDate(dRaw);y=yearOf(dod);}
+      else if(extras[n]&&!extras[n].dod&&extras[n].y)y=extras[n].y;
       const lodTxt=cell(c,iL).toLowerCase();
       const ex=extras[n]||{};
       return {n,r,u:rankUnit(r),y,dod,
@@ -729,6 +730,12 @@ function buildPills(){
   document.getElementById('lodCount').textContent=DATA.filter(o=>o.lod).length;
 }
 
+function clearSearch(){
+  const s=document.getElementById('searchInput');if(s)s.value='';
+  activeRank='all';
+  document.querySelectorAll('.pill').forEach((p,i)=>p.classList.toggle('active',i===0));
+  render();
+}
 function setRank(k,el){
   activeRank=k;
   document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));
@@ -747,7 +754,7 @@ function render(){
   document.getElementById('visCount').textContent=filtered.length;
   document.getElementById('footCount').textContent=filtered.length+' OF '+DATA.length+' OFFICERS';
   const wrap=document.getElementById('listWrap');
-  if(!filtered.length){wrap.innerHTML='<div class="empty"><div style="font-size:32px">🕯</div><p>NO OFFICERS FOUND</p></div>';return;}
+  if(!filtered.length){wrap.innerHTML='<div class="empty"><div style="font-size:32px">🕯</div><p>NO OFFICERS FOUND</p>'+(q?'<p style="font-size:15px;letter-spacing:1px;text-transform:none;font-family:\'Crimson Pro\',serif;color:var(--text-bright)">Nobody matches “'+esc(q)+'”.</p><button class="d-btn" style="width:auto;margin:14px auto 0;display:inline-flex" onclick="clearSearch()">✕ CLEAR SEARCH &amp; SHOW EVERYONE</button>':'')+'</div>';return;}
   const groups={};
   filtered.forEach(o=>{if(!groups[o.r])groups[o.r]=[];groups[o.r].push(o);});
   let html='';
@@ -844,6 +851,7 @@ function adminToggle(){
   document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
     <h3>🔒 ADMINISTRATOR SIGN-IN</h3>
     <label>PASSCODE</label>
+    <input type="text" name="username" autocomplete="username" value="SCSO administrator" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <input id="admPass" type="password" name="eow-passcode" autocomplete="off" data-lpignore="true" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
     <div class="err" id="admErr"></div>
     <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" id="admGo" onclick="tryAdmin()">SIGN IN</button></div>
@@ -867,6 +875,7 @@ function tryAdmin(){
   if(cyrb53(p.trim().toUpperCase())===ADMIN_HASH){
     try{sessionStorage.setItem('scso_eow_pass',p.trim());}catch(e){}
     setAdmin(true);document.getElementById('overlay').classList.remove('open');
+    clearSearch();
     toast('Signed in. Tap any officer to see the Edit button.');
   }else{
     document.getElementById('admErr').textContent='That passcode is not correct.';
@@ -1325,6 +1334,8 @@ if(SHEET_ID){
   toggleEdit=function(){toast('Opening the roster sheet. Find the officer\'s row, type the change, and the website updates on its own.');window.open(SHEET_EDIT,'_blank');};
   showAddForm=function(){toast('Opening the roster sheet. Add the officer on a new row at the bottom.');window.open(SHEET_EDIT,'_blank');};
 }
+document.getElementById('searchInput').value='';
+setTimeout(()=>{const s=document.getElementById('searchInput');if(s&&/@/.test(s.value)){s.value='';render();}},1500);
 loadSheet().then(()=>{if(!SHEET_ID)applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();});
 </script>
 </body>
