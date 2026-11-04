@@ -277,6 +277,7 @@ const BADGE_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAAB
 // Columns expected: Name, Rank, Unit, Year, LOD (TRUE/FALSE), Notes, EMP_NO, OBIT, FB_LINK, DATE_OF_DEATH
 const SHEET_ID = '1qJ0ZYwOaqXezOjcPJlgUWNLWdxvqyWIVXvr19dYFmWg';
 const SHEET_EDIT = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/edit';
+let SHEET_LAST_ROW=0;
 
 // ── FACEBOOK GROUP ─────────────────────────────────────────────
 // Shelby County Sheriff's Office - Retirees (private group).
@@ -647,7 +648,8 @@ async function loadSheet(){
     const cell=(c,i)=>{if(i<0||!c[i]||c[i].v==null)return '';return String(c[i].f!=null?c[i].f:c[i].v).trim();};
     const extras={};EMBEDDED.forEach(o=>{extras[o.n]=o;});
     if(iN<0)throw new Error('no Name column');
-    DATA=json.table.rows.map(row=>{
+    SHEET_LAST_ROW=json.table.rows.length+1;
+    DATA=json.table.rows.map((row,ri)=>{
       const c=row.c||[];
       const n=cell(c,iN);if(!n)return null;
       let r=cell(c,iR)||'Patrolman';
@@ -657,7 +659,7 @@ async function loadSheet(){
       else if(extras[n]&&!extras[n].dod&&extras[n].y)y=extras[n].y;
       const lodTxt=cell(c,iL).toLowerCase();
       const ex=extras[n]||{};
-      return {n,r,u:rankUnit(r),y,dod,
+      return {_row:ri+2,n,r,u:rankUnit(r),y,dod,
         lod:/^(y|yes|true|x|✓)/.test(lodTxt),
         notes:cell(c,iNo),e:fmtEmp(cell(c,iE)),ob:cell(c,iO2>=0?iO2:iO),fb:cell(c,iF),
         obt:cell(c,iT)||ex.obt||'',ph:ex.ph||'',gal:ex.gal||[]};
@@ -1333,8 +1335,18 @@ function spaced(s){return s.split('').join(String.fromCharCode(8202));}
 // ── INIT ──────────────────────────────────────────────────────
 document.getElementById('hdrBadge').src=BADGE_SRC;
 if(SHEET_ID&&!GOOGLE_URL){
-  toggleEdit=function(){toast('Opening the roster sheet. Find the officer\'s row, type the change, and the website updates on its own.');window.open(SHEET_EDIT,'_blank');};
-  showAddForm=function(){toast('Opening the roster sheet. Add the officer on a new row at the bottom.');window.open(SHEET_EDIT,'_blank');};
+  // open the sheet right on this officer's row, highlighted
+  toggleEdit=function(idx){
+    const o=DATA[idx];
+    const url=SHEET_EDIT+(o&&o._row?'#gid=0&range=A'+o._row+':I'+o._row:'');
+    toast(o&&o._row?'Opening '+o.n+'\'s row. Type your change in it. It saves by itself.':'Opening the roster.');
+    window.open(url,'_blank');
+  };
+  showAddForm=function(){
+    const r=(SHEET_LAST_ROW||0)+1;
+    toast('Opening the first empty row. Type the name, rank and date. It saves by itself.');
+    window.open(SHEET_EDIT+(r>1?'#gid=0&range=A'+r+':I'+r:''),'_blank');
+  };
 }
 document.getElementById('searchInput').value='';
 setTimeout(()=>{const s=document.getElementById('searchInput');if(s&&/@/.test(s.value)){s.value='';render();}},1500);
