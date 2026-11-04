@@ -1,0 +1,147 @@
+/**
+ * End of Watch memorial — save helper (runs in John Harvey's Google account)
+ *
+ * The memorial web page reads the officer list from here and sends
+ * administrators' edits here. Edits are accepted only with the
+ * administrator passcode. Officer data is kept in a Google Drive folder
+ * named "End of Watch memorial data"; photos are kept in the same folder.
+ *
+ * Setup (once): Deploy > New deployment > Web app,
+ *   Execute as: Me   ·   Who has access: Anyone
+ */
+
+const ADMIN_HASH = 111271057249131;              // same passcode as the web page
+const FOLDER_NAME = 'End of Watch memorial data';
+const DATA_NAME = 'officers.json';
+
+function cyrb53(s, seed) {
+  seed = seed || 7;
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507); h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507); h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+function folder_() {
+  const it = DriveApp.getFoldersByName(FOLDER_NAME);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(FOLDER_NAME);
+}
+function dataFile_() {
+  const it = folder_().getFilesByName(DATA_NAME);
+  return it.hasNext() ? it.next() : null;
+}
+function readData_() {
+  const f = dataFile_();
+  return f ? JSON.parse(f.getBlob().getDataAsString()) : null;
+}
+function writeData_(arr) {
+  const s = JSON.stringify(arr);
+  const f = dataFile_();
+  if (f) f.setContent(s); else folder_().createFile(DATA_NAME, s, 'application/json');
+}
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rankUnit_(r) {
+  return { 'Sheriff': 1, 'Chief Deputy': 2, 'CAO': 2.5, 'Asst Chief': 4, 'Chief Inspector': 4.5, 'Inspector': 5, 'Captain': 6, 'Lieutenant': 7, 'Sergeant': 8, 'Patrolman': 9, 'Reserve': 10 }[r] || 9;
+}
+function insertOfficer_(DATA, rec) {
+  const last = o => o.n.replace(/["']/g, '').trim().split(/\s+/).pop().toLowerCase();
+  let after = -1;
+  for (let i = 0; i < DATA.length; i++) {
+    if (DATA[i].r !== rec.r) continue;
+    if (last(DATA[i]) > last(rec)) { DATA.splice(i, 0, rec); return; }
+    after = i;
+  }
+  if (after >= 0) DATA.splice(after + 1, 0, rec); else DATA.push(rec);
+}
+function mergeEdits_(DATA, ED) {
+  Object.keys(ED).forEach(n => {
+    const x = ED[n]; if (!x || !x.add) return;
+    const add = Object.assign({}, x.add, { u: rankUnit_(x.add.r) });
+    const ex = DATA.find(o => o.n === n);
+    if (ex) Object.assign(ex, add);
+    else insertOfficer_(DATA, Object.assign({ e: '', ob: '', fb: '', dod: '', obt: '', ph: '', y: null, lod: false, notes: '' }, add));
+  });
+  Object.keys(ED).forEach(n => { if (ED[n] && ED[n].del) { const i = DATA.findIndex(o => o.n === n); if (i >= 0) DATA.splice(i, 1); } });
+  DATA.forEach(o => {
+    const x = ED[o.n];
+    if (x && !x.del && ('e' in x)) {
+      o.e = x.e; o.ob = x.ob; o.fb = x.fb; o.obt = x.obt || o.obt || '';
+      if ('ph' in x) o.ph = x.ph;
+      if ('gal' in x) o.gal = x.gal;
+      if ('y' in x) { o.dod = x.dod || ''; o.y = x.y; }
+    }
+  });
+}
+
+// Keep only the fields the page uses, as plain text.
+function clean_(ED) {
+  const S = v => typeof v === 'string' ? v.slice(0, 40000) : '';
+  const URL_OK = v => /^https?:\/\//i.test(v || '') ? S(v) : '';
+  const PIC_OK = v => typeof v === 'string' && (/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(v) || /^https:\/\/drive\.google\.com\//.test(v) || /^photos\/[a-z0-9.\-]+\.jpg$/.test(v));
+  const out = {};
+  Object.keys(ED || {}).slice(0, 400).forEach(n => {
+    const x = ED[n];
+    if (!n.trim() || !x || typeof x !== 'object') return;
+    if (x.del) { out[n] = { del: true }; return; }
+    const c = {};
+    if (x.add) c.add = { n: S(x.add.n) || n, r: S(x.add.r) || 'Patrolman', lod: !!x.add.lod, notes: S(x.add.notes) };
+    if ('e' in x) {
+      c.e = S(x.e); c.ob = URL_OK(x.ob); c.fb = URL_OK(x.fb); c.dod = S(x.dod); c.obt = S(x.obt);
+      c.y = Number.isInteger(x.y) ? x.y : null;
+      if ('ph' in x) c.ph = PIC_OK(x.ph) ? x.ph : '';
+      if (Array.isArray(x.gal)) c.gal = x.gal.filter(PIC_OK).slice(0, 60);
+    }
+    out[n] = c;
+  });
+  return out;
+}
+
+// Turn pasted pictures into Drive files that anyone can view.
+function savePicture_(dataUrl, name) {
+  const m = dataUrl.match(/^data:(image\/(jpeg|png));base64,(.+)$/);
+  const blob = Utilities.newBlob(Utilities.base64Decode(m[3]), m[1], name + (m[2] === 'png' ? '.png' : '.jpg'));
+  const file = folder_().createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1200';
+}
+function photos_(DATA) {
+  DATA.forEach(o => {
+    const slug = o.n.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (o.ph && /^data:image\//.test(o.ph)) o.ph = savePicture_(o.ph, slug + '-portrait-' + Date.now());
+    if (Array.isArray(o.gal)) o.gal = o.gal.map((g, i) => /^data:image\//.test(g) ? savePicture_(g, slug + '-' + Date.now() + '-' + i) : g);
+  });
+}
+
+// Page asks for the newest officer list.
+function doGet() {
+  return json_({ ok: true, officers: readData_() });
+}
+
+// Page sends an administrator's changes.
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const body = JSON.parse(e.postData.contents);
+    if (cyrb53(String(body.passcode || '').trim().toUpperCase()) !== ADMIN_HASH) return json_({ ok: false, code: 401, error: 'Wrong passcode' });
+    let data = readData_();
+    if (!data) {
+      if (!Array.isArray(body.base)) return json_({ ok: false, needBase: true });
+      data = body.base;
+    }
+    const edits = clean_(body.edits);
+    if (!Object.keys(edits).length) return json_({ ok: false, error: 'Nothing to save' });
+    mergeEdits_(data, edits);
+    photos_(data);
+    writeData_(data);
+    return json_({ ok: true, officers: data });
+  } catch (err) {
+    return json_({ ok: false, error: String(err && err.message || err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
