@@ -275,7 +275,8 @@ const BADGE_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAAB
 // To enable live data: set SHEET_ID to your published Google Sheet ID
 // Sheet must be published to web (File > Share > Publish to web)
 // Columns expected: Name, Rank, Unit, Year, LOD (TRUE/FALSE), Notes, EMP_NO, OBIT, FB_LINK, DATE_OF_DEATH
-const SHEET_ID = '';
+const SHEET_ID = '1qJ0ZYwOaqXezOjcPJlgUWNLWdxvqyWIVXvr19dYFmWg';
+const SHEET_EDIT = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/edit';
 
 // ── FACEBOOK GROUP ─────────────────────────────────────────────
 // Shelby County Sheriff's Office - Retirees (private group).
@@ -635,29 +636,33 @@ async function loadSheet(){
     return;
   }
   try{
-    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-    const res=await fetch(url);
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&headers=1&t=${Date.now()}`;
+    const res=await fetch(url,{cache:'no-store'});
     const text=await res.text();
-    const json=JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/)[1]);
-    const rows=json.table.rows;
-    DATA=rows.map(row=>{
-      const c=row.c;
-      const o={
-        n:(c[0]&&c[0].v)||'',
-        r:(c[1]&&c[1].v)||'Patrolman',
-        u:parseFloat((c[2]&&c[2].v)||9),
-        y:(c[3]&&c[3].v)?parseInt(c[3].v):null,
-        lod:String((c[4]&&c[4].v)||'').toUpperCase()==='TRUE',
-        notes:(c[5]&&c[5].v)||'',
-        e:fmtEmp((c[6]&&c[6].v)||''),
-        ob:(c[7]&&c[7].v)||'',
-        fb:(c[8]&&c[8].v)||'',
-        dod:fmtDate((c[9]&&(c[9].f||c[9].v))||'')
-      };
-      if(o.dod&&!o.y)o.y=yearOf(o.dod);
-      return o;
-    }).filter(o=>o.n);
-    setSheetStatus(true,'LIVE · GOOGLE SHEETS · '+DATA.length+' OFFICERS');
+    const json=JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/)[1]);
+    const cols=json.table.cols.map(c=>String(c.label||'').trim().toLowerCase());
+    const col=name=>cols.findIndex(l=>l.startsWith(name));
+    const iN=col('name'),iR=col('rank'),iD=col('date'),iO=col('obit'),iE=col('employee'),iL=col('line'),iNo=col('note'),iF=col('facebook');
+    const cell=(c,i)=>{if(i<0||!c[i]||c[i].v==null)return '';return String(c[i].f!=null?c[i].f:c[i].v).trim();};
+    const extras={};EMBEDDED.forEach(o=>{extras[o.n]=o;});
+    if(iN<0)throw new Error('no Name column');
+    DATA=json.table.rows.map(row=>{
+      const c=row.c||[];
+      const n=cell(c,iN);if(!n)return null;
+      let r=cell(c,iR)||'Patrolman';
+      const match=RANK_ORDER.find(x=>x.toLowerCase()===r.toLowerCase());r=match||r;
+      const dRaw=cell(c,iD);let dod='',y=null;
+      if(/^\d{4}$/.test(dRaw))y=parseInt(dRaw);else if(dRaw){dod=fmtDate(dRaw);y=yearOf(dod);}
+      const lodTxt=cell(c,iL).toLowerCase();
+      const ex=extras[n]||{};
+      return {n,r,u:rankUnit(r),y,dod,
+        lod:/^(y|yes|true|x|✓)/.test(lodTxt),
+        notes:cell(c,iNo),e:fmtEmp(cell(c,iE)),ob:cell(c,iO),fb:cell(c,iF),
+        obt:ex.obt||'',ph:ex.ph||'',gal:ex.gal||[]};
+    }).filter(Boolean);
+    if(!DATA.length)throw new Error('empty sheet');
+    DATA.forEach(o=>{if(!RANK_ORDER.includes(o.r))RANK_ORDER.push(o.r);});
+    setSheetStatus(true,'LIVE FROM THE ROSTER SHEET · '+DATA.length+' OFFICERS');
   }catch(e){
     DATA=EMBEDDED;
     setSheetStatus(false,'SHEET ERROR · USING EMBEDDED DATA');
@@ -1316,6 +1321,10 @@ function spaced(s){return s.split('').join(String.fromCharCode(8202));}
 
 // ── INIT ──────────────────────────────────────────────────────
 document.getElementById('hdrBadge').src=BADGE_SRC;
+if(SHEET_ID){
+  toggleEdit=function(){toast('Opening the roster sheet. Find the officer\'s row, type the change, and the website updates on its own.');window.open(SHEET_EDIT,'_blank');};
+  showAddForm=function(){toast('Opening the roster sheet. Add the officer on a new row at the bottom.');window.open(SHEET_EDIT,'_blank');};
+}
 loadSheet().then(()=>{if(!SHEET_ID)applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();});
 </script>
 </body>
