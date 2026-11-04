@@ -3,6 +3,8 @@ name: Update Facebook banner count
 on:
   schedule:
     - cron: '17 11 * * *'   # every day, early morning Memphis time
+  push:
+    paths: ['index.html']
   workflow_dispatch:         # can also be run by hand from the Actions tab
 
 permissions:

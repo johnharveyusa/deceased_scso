@@ -1,22 +1,18 @@
 """Redraw facebook-banner.png with the current number of officers.
 
-Counts the officers in the End of Watch roster Google Sheet (the sheet the
-website reads), puts that number into banner/template.html, and takes a
+Counts the officers listed in the memorial page (index.html), puts that number into banner/template.html, and takes a
 1200x630 picture of it with headless Chrome. Run by the daily GitHub job.
 """
-import csv, io, os, pathlib, shutil, subprocess, sys, urllib.request
+import pathlib, shutil, subprocess, sys
 
-SHEET_ID = '1qJ0ZYwOaqXezOjcPJlgUWNLWdxvqyWIVXvr19dYFmWg'
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 HERE = ROOT / 'banner'
 
 def officer_count():
     if len(sys.argv) > 1:
         return int(sys.argv[1])
-    url = f'https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&headers=1'
-    text = urllib.request.urlopen(url, timeout=30).read().decode('utf-8')
-    rows = list(csv.reader(io.StringIO(text)))
-    return sum(1 for r in rows[1:] if r and r[0].strip())
+    page = (ROOT / 'index.html').read_text(encoding='utf-8')
+    return sum(1 for line in page.splitlines() if line.startswith('{n:"'))
 
 def main():
     n = officer_count()

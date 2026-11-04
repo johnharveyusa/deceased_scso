@@ -275,7 +275,7 @@ const BADGE_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAAB
 // To enable live data: set SHEET_ID to your published Google Sheet ID
 // Sheet must be published to web (File > Share > Publish to web)
 // Columns expected: Name, Rank, Unit, Year, LOD (TRUE/FALSE), Notes, EMP_NO, OBIT, FB_LINK, DATE_OF_DEATH
-const SHEET_ID = '1qJ0ZYwOaqXezOjcPJlgUWNLWdxvqyWIVXvr19dYFmWg';
+const SHEET_ID = '';
 const SHEET_EDIT = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/edit';
 let SHEET_LAST_ROW=0;
 
@@ -339,8 +339,8 @@ const EMBEDDED = [
 {n:"Gene Mendenhall",r:"Inspector",u:5,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Lonnie Rose",r:"Inspector",u:5,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Robert Bob Smith",r:"Inspector",u:5,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
-{n:"Pat Swain",r:"Inspector",u:5,y:2022,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
-{n:"Richard Swain",r:"Inspector",u:5,y:null,lod:false,notes:"Cleburne County Sheriff AR",e:"",ob:"",fb:"",dod:""},
+{n:"Pat Swain",r:"Inspector",u:5,y:2022,lod:false,notes:"",e:"",ob:"https://www.arkansasonline.com/news/2015/nov/22/quitman-officer-lauded-retires-after-long-career/",fb:"",dod:""},
+{n:"Richard Swain",r:"Inspector",u:5,y:2015,lod:false,notes:"Cleburne County Sheriff AR",e:"",ob:"https://www.legacy.com/us/obituaries/commercialappeal/name/charles-swain-obituary?id=9108904",fb:"",dod:"01/25/2015"},
 {n:"Jimmy Paul Tucker",r:"Inspector",u:5,y:2024,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Fred Wall",r:"Inspector",u:5,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Willie Wimbley",r:"Inspector",u:5,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
@@ -472,6 +472,7 @@ const EMBEDDED = [
 {n:"M.O. Vaught",r:"Sergeant",u:8,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Shirley Verges",r:"Sergeant",u:8,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Frank Peaches Vining",r:"Sergeant",u:8,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
+{n:"Jay Westmoreland",r:"Sergeant",u:8,y:2026,lod:false,notes:"",e:"",ob:"https://www.dignitymemorial.com/obituaries/bartlett-tn/james-westmoreland-13102581",fb:"",dod:"10/31/2026"},
 {n:"George Whitney",r:"Sergeant",u:8,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"James Wilkerson",r:"Sergeant",u:8,y:null,lod:false,notes:"",e:"",ob:"",fb:"",dod:""},
 {n:"Jack Dallosta",r:"Patrolman",u:9,y:2016,lod:false,notes:"",e:"",ob:"https://www.facebook.com/photo.php?fbid=10165989809378993&set=p.10165989809378993&type=3",fb:"",dod:"11/11/2016"},
@@ -1137,6 +1138,38 @@ function removeOfficer(idx){
 // is kept only in that administrator's browser, never in this page.
 const GH_REPO='johnharveyusa/deceased_scso', GH_FILE='index.html', GH_KEY='scso_eow_gh_token';
 function ghToken(){try{return localStorage.getItem(GH_KEY)||'';}catch(e){return '';}}
+// ENC_KEY holds John's GitHub key, locked with the administrator passcode.
+// Only someone who signs in with the passcode can unlock it, in their own browser.
+const ENC_KEY = '';
+let PENDING_ENC = '';
+function b64u8(s){const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+function u8b64(u){let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+async function passKey(pass,salt){
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(String(pass).trim().toUpperCase()),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function lockKey(tok,pass){
+  const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},await passKey(pass,salt),new TextEncoder().encode(tok)));
+  const all=new Uint8Array(28+ct.length);all.set(salt,0);all.set(iv,16);all.set(ct,28);
+  return u8b64(all);
+}
+async function unlockKey(blob,pass){
+  const all=b64u8(blob);
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:all.slice(16,28)},await passKey(pass,all.slice(0,16)),all.slice(28));
+  return new TextDecoder().decode(pt);
+}
+async function getSaveKey(){
+  const local=ghToken();if(local)return local;
+  if(!ENC_KEY)return '';
+  let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}
+  if(!pass)return '';
+  try{const t=await unlockKey(ENC_KEY,pass);try{localStorage.setItem(GH_KEY,t);}catch(e){}return t;}catch(e){return '';}
+}
+function withEncKey(src){
+  if(!PENDING_ENC)return src;
+  return src.replace(/const ENC_KEY = '[^']*';/,"const ENC_KEY = '"+PENDING_ENC+"';");
+}
 function buildPageSource(base){
   const lines=DATA.map(o=>`{n:${q(o.n)},r:${q(o.r)},u:${o.u},y:${o.y==null?'null':o.y},lod:${!!o.lod},notes:${q(o.notes)},e:${q(o.e)},ob:${q(o.ob)},fb:${q(o.fb)},dod:${q(o.dod)}${o.obt?',obt:'+q(o.obt):''}${o.ph?',ph:'+q(o.ph):''}${(o.gal&&o.gal.length)?',gal:['+o.gal.map(q).join(',')+']':''}}`);
   let src=(base||PAGE_SRC).replace(/const EMBEDDED = \[[\s\S]*?\n\];/,()=>'const EMBEDDED = [\n'+lines.join(',\n')+'\n];');
@@ -1147,17 +1180,19 @@ function fromB64(b64){const s=atob(b64.replace(/\s/g,''));const b=new Uint8Array
 function toB64(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
 function showKeySetup(){
   document.getElementById('panelContent').innerHTML=`<div class="d-edit d-setup" style="margin-top:0">
-    <h3>ONE-TIME SETUP ON THIS COMPUTER</h3>
-    <p style="font-size:17px;color:var(--text-bright);line-height:1.5">To let this page save to the website, GitHub needs to give it a key. You do this <b>once</b>, then Save just works.</p>
-    <a href="https://github.com/settings/tokens/new?description=End%20of%20Watch%20memorial&scopes=public_repo&default_expires_at=none" target="_blank" rel="noopener"
-       style="display:block;text-align:center;margin:14px 0;padding:14px;border-radius:8px;background:#d4c484;color:#1a1a12;font-family:'Cinzel',serif;font-weight:700;letter-spacing:2px;text-decoration:none">1 · GET MY KEY FROM GITHUB ↗</a>
+    <h3>ONE-TIME SETUP (JOHN ONLY)</h3>
+    <p style="font-size:17px;color:var(--text-bright);line-height:1.5">This connects Save to the website for <b>every</b> administrator. You do it once. After that, admins only need the passcode.</p>
+    <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"
+       style="display:block;text-align:center;margin:14px 0;padding:14px;border-radius:8px;background:#d4c484;color:#1a1a12;font-family:'Cinzel',serif;font-weight:700;letter-spacing:2px;text-decoration:none">1 · OPEN GITHUB'S KEY PAGE ↗</a>
     <ol start="2">
-      <li>On the GitHub page that opens (sign in if asked), scroll to the bottom and click the green <b>Generate token</b> button. If it asks about <b>Expiration</b>, choose <b>No expiration</b>.</li>
-      <li>Click the <b>copy</b> icon next to the key it shows (it starts with <i>ghp_</i>).</li>
-      <li>Come back here, paste it below, and click <b>Save</b>.</li>
+      <li><b>Token name:</b> End of Watch. <b>Expiration:</b> the longest choice.</li>
+      <li><b>Repository access:</b> <i>Only select repositories</i> → <b>deceased_scso</b>.</li>
+      <li><b>Permissions → Repository permissions → Contents:</b> <b>Read and write</b>.</li>
+      <li>Click the green <b>Generate token</b>, then copy the key (it starts with <i>github_pat_</i>).</li>
+      <li>Paste it below and click <b>Save</b>.</li>
     </ol>
     <label>PASTE THE KEY HERE</label>
-    <input id="ghTok" placeholder="ghp_..." autocomplete="off">
+    <input id="ghTok" placeholder="github_pat_..." autocomplete="off">
     <div class="err" id="ghErr"></div>
     <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" onclick="saveKeyAndPublish()">SAVE</button></div>
   </div>`;
@@ -1166,11 +1201,12 @@ function showKeySetup(){
 }
 function saveKeyAndPublish(){
   const t=document.getElementById('ghTok').value.trim();
-  if(!/^(github_pat_|ghp_)/.test(t)){document.getElementById('ghErr').textContent='That doesn\'t look like a GitHub key. It should start with ghp_';return;}
+  if(!/^(github_pat_|ghp_)/.test(t)){document.getElementById('ghErr').textContent='That doesn\'t look like a GitHub key. It should start with github_pat_';return;}
   try{localStorage.setItem(GH_KEY,t);}catch(e){}
+  let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}
   const i=CUR_NAME?DATA.findIndex(o=>o.n===CUR_NAME):-1;
   if(i>=0)showDetail(i);else document.getElementById('overlay').classList.remove('open');
-  publishToSite();
+  (pass?lockKey(t,pass):Promise.resolve('')).then(enc=>{PENDING_ENC=enc;publishToSite();});
 }
 let PUBLISHING=false;
 // ── SAVE THROUGH JOHN'S GOOGLE ACCOUNT (no keys for administrators) ──
@@ -1197,7 +1233,7 @@ async function loadLive(){
 }
 async function publishToSite(){
   if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
-  if(!GOOGLE_URL){alert('Saving to the website is still being set up. Your change is kept on this computer.');return;}
+  if(!GOOGLE_URL){return publishWithKey();}
   let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}
   if(!pass){setAdmin(false);alert('Please sign in again with the passcode, then click Save.');adminToggle();return;}
   PUBLISHING=true;updateSaveBar();
@@ -1220,8 +1256,12 @@ async function publishToSite(){
 }
 async function publishWithKey(){
   if(!IS_ADMIN||PUBLISHING||!Object.keys(EDITS).length)return;
-  const tok=ghToken();
-  if(!tok){showKeySetup();return;}
+  const tok=await getSaveKey();
+  if(!tok){
+    if(ENC_KEY){alert('Please sign out and sign in again with the passcode, then click Save. Your change is kept on this computer.');}
+    else showKeySetup();
+    return;
+  }
   PUBLISHING=true;updateSaveBar();
   const msg=document.getElementById('saveMsg');
   const api='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE;
@@ -1234,7 +1274,8 @@ async function publishWithKey(){
       if(cur.status===401||cur.status===403||cur.status===404){
         try{localStorage.removeItem(GH_KEY);}catch(e){}
         PUBLISHING=false;DATA=LOCAL;updateSaveBar();
-        alert('GitHub did not accept the key (it may have expired). Please connect again. It only takes a minute.');
+        if(ENC_KEY&&!PENDING_ENC){alert('Saving is switched off right now (the key may have expired). Your change is kept on this computer. Please tell John.');return;}
+        alert('GitHub did not accept that key. Please make a new one and try again.');
         showKeySetup();return;
       }
       if(!cur.ok)throw new Error('GitHub answered '+cur.status);
@@ -1267,7 +1308,7 @@ async function publishWithKey(){
       Object.keys(EDITS).forEach(k=>{const x=EDITS[k];const o=DATA.find(d=>d.n===k);if(x&&x.gal&&o)x.gal=o.gal.slice();});storeEdits(EDITS);
       const names=Object.keys(EDITS);
       const put=await fetch(api,{method:'PUT',headers:Object.assign({'Content-Type':'application/json'},hdr),
-        body:JSON.stringify({message:'Memorial update: '+names.slice(0,3).join(', ')+(names.length>3?' and '+(names.length-3)+' more':''),content:toB64(buildPageSource(src)),sha:info.sha,branch:'main'})});
+        body:JSON.stringify({message:'Memorial update: '+names.slice(0,3).join(', ')+(names.length>3?' and '+(names.length-3)+' more':''),content:toB64(withEncKey(buildPageSource(src))),sha:info.sha,branch:'main'})});
       if((put.status===409||put.status===422)&&attempt<3){DATA=LOCAL;await new Promise(r=>setTimeout(r,1200));continue;}
       if(!put.ok)throw new Error('GitHub answered '+put.status);
       rememberRecent(EDITS);
