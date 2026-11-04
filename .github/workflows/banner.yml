@@ -1,0 +1,29 @@
+name: Update Facebook banner count
+
+on:
+  schedule:
+    - cron: '17 11 * * *'   # every day, early morning Memphis time
+  workflow_dispatch:         # can also be run by hand from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  banner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Redraw banner with the current officer count
+        run: python3 banner/make_banner.py
+      - name: Save it if the number changed
+        run: |
+          if git diff --quiet -- banner/count.txt; then
+            echo "Officer count unchanged; nothing to save."
+            git checkout -- facebook-banner.png
+          else
+            git config user.name "End of Watch banner"
+            git config user.email "actions@users.noreply.github.com"
+            git add facebook-banner.png banner/count.txt
+            git commit -m "Banner: honoring $(cat banner/count.txt) officers"
+            git push
+          fi
