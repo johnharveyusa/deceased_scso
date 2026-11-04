@@ -642,7 +642,8 @@ async function loadSheet(){
     const json=JSON.parse(text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);?\s*$/)[1]);
     const cols=json.table.cols.map(c=>String(c.label||'').trim().toLowerCase());
     const col=name=>cols.findIndex(l=>l.startsWith(name));
-    const iN=col('name'),iR=col('rank'),iD=col('date'),iO=col('obit'),iE=col('employee'),iL=col('line'),iNo=col('note'),iF=col('facebook');
+    const iN=col('name'),iR=col('rank'),iD=col('date'),iO=col('obit'),iE=col('employee'),iL=col('line'),iNo=col('note'),iF=col('facebook'),iT=col('obituary text');
+    const iO2=cols.findIndex(l=>l.startsWith('obituary link'));
     const cell=(c,i)=>{if(i<0||!c[i]||c[i].v==null)return '';return String(c[i].f!=null?c[i].f:c[i].v).trim();};
     const extras={};EMBEDDED.forEach(o=>{extras[o.n]=o;});
     if(iN<0)throw new Error('no Name column');
@@ -658,8 +659,8 @@ async function loadSheet(){
       const ex=extras[n]||{};
       return {n,r,u:rankUnit(r),y,dod,
         lod:/^(y|yes|true|x|✓)/.test(lodTxt),
-        notes:cell(c,iNo),e:fmtEmp(cell(c,iE)),ob:cell(c,iO),fb:cell(c,iF),
-        obt:ex.obt||'',ph:ex.ph||'',gal:ex.gal||[]};
+        notes:cell(c,iNo),e:fmtEmp(cell(c,iE)),ob:cell(c,iO2>=0?iO2:iO),fb:cell(c,iF),
+        obt:cell(c,iT)||ex.obt||'',ph:ex.ph||'',gal:ex.gal||[]};
     }).filter(Boolean);
     if(!DATA.length)throw new Error('empty sheet');
     DATA.forEach(o=>{if(!RANK_ORDER.includes(o.r))RANK_ORDER.push(o.r);});
@@ -973,6 +974,7 @@ function toggleEdit(idx){
     <button class="d-remove" onclick="removeOfficer(${idx})">REMOVE THIS OFFICER FROM THE LIST</button>
   </div>`;
   PH_PENDING=undefined;
+  if(GOOGLE_URL){const box=document.getElementById('editBox');[...box.querySelectorAll('.ph-edit,.gal-edit,.gal-add')].forEach(el=>{el.style.display='none';let s=el.previousElementSibling;if(s&&s.tagName==='LABEL')s.style.display='none';let n=el.nextElementSibling;if(n&&n.classList.contains('hint'))n.style.display='none';});}
   GAL_PENDING=(o.gal||[]).slice();renderGalEdit();
   document.getElementById('edE').focus();
 }
@@ -1202,13 +1204,13 @@ async function publishToSite(){
     if(j&&j.needBase)j=await googleCall({passcode:pass,edits:EDITS,base:JSON.parse(BASE_JSON)});
     if(j&&j.code===401){PUBLISHING=false;updateSaveBar();setAdmin(false);alert('The passcode was not accepted. Please sign in again.');adminToggle();return;}
     if(!j||!j.ok)throw new Error((j&&j.error)||'no answer');
-    EDITS={};try{localStorage.removeItem(EDIT_KEY);localStorage.removeItem(RECENT_KEY);}catch(e){}
+    rememberRecent(EDITS);EDITS={};try{localStorage.removeItem(EDIT_KEY);}catch(e){}
     if(Array.isArray(j.officers)){DATA=j.officers;setSheetStatus(true,'LIVE · '+DATA.length+' OFFICERS');}
     PUBLISHING=false;updateSaveBar();buildPills();render();
     if(document.getElementById('overlay').classList.contains('open')&&CUR_NAME&&document.getElementById('editToggle')&&!document.getElementById('editBox').innerHTML){
       const i=DATA.findIndex(o=>o.n===CUR_NAME);if(i>=0)showDetail(i);
     }
-    toast('✓ Saved. Everyone sees it right away.');
+    toast('✓ Saved to the roster. Everyone sees it within a minute.');
   }catch(e){
     PUBLISHING=false;updateSaveBar();
     alert('Could not save right now ('+e.message+'). Your change is kept on this computer. Click TRY SAVING AGAIN on the gold bar in a minute.');
@@ -1330,13 +1332,13 @@ function spaced(s){return s.split('').join(String.fromCharCode(8202));}
 
 // ── INIT ──────────────────────────────────────────────────────
 document.getElementById('hdrBadge').src=BADGE_SRC;
-if(SHEET_ID){
+if(SHEET_ID&&!GOOGLE_URL){
   toggleEdit=function(){toast('Opening the roster sheet. Find the officer\'s row, type the change, and the website updates on its own.');window.open(SHEET_EDIT,'_blank');};
   showAddForm=function(){toast('Opening the roster sheet. Add the officer on a new row at the bottom.');window.open(SHEET_EDIT,'_blank');};
 }
 document.getElementById('searchInput').value='';
 setTimeout(()=>{const s=document.getElementById('searchInput');if(s&&/@/.test(s.value)){s.value='';render();}},1500);
-loadSheet().then(()=>{if(!SHEET_ID)applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();});
+loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();});
 </script>
 </body>
 </html>

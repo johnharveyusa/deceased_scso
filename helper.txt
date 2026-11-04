@@ -1,0 +1,126 @@
+/**
+ * End of Watch memorial — save helper (runs in John Harvey's Google account)
+ *
+ * The memorial web page shows an edit form to administrators. When they
+ * click Save, the page sends the change here with the administrator
+ * passcode, and this helper writes it into the roster spreadsheet
+ * "End of Watch Roster (website)". Nobody has to open the spreadsheet.
+ *
+ * One-time setup:
+ *   1. Choose "setup" in the toolbar and click Run (Google asks for permission once).
+ *   2. Deploy > New deployment > Web app · Execute as: Me · Who has access: Anyone
+ */
+
+const SHEET_ID = '1qJ0ZYwOaqXezOjcPJlgUWNLWdxvqyWIVXvr19dYFmWg';
+const ADMIN_HASH = 111271057249131;   // same passcode as the web page
+const COLUMNS = ['Name', 'Rank', 'Date of Death', 'Obituary Link', 'Employee No', 'Line of Duty', 'Notes', 'Facebook Album', 'Obituary Text'];
+
+function cyrb53(s, seed) {
+  seed = seed || 7;
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < s.length; i++) { const c = s.charCodeAt(i); h1 = Math.imul(h1 ^ c, 2654435761); h2 = Math.imul(h2 ^ c, 1597334677); }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507); h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507); h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+function sheet_() { return SpreadsheetApp.openById(SHEET_ID).getSheets()[0]; }
+
+// Make sure every column exists, and keep the date column as plain text
+// so "2022" and "03/07/2022" are both kept exactly as typed.
+function columns_(sh) {
+  let lastCol = Math.max(sh.getLastColumn(), 1);
+  let hdr = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  COLUMNS.forEach(name => {
+    if (!hdr.some(h => h.toLowerCase() === name.toLowerCase())) {
+      lastCol = hdr.length + 1;
+      sh.getRange(1, lastCol).setValue(name);
+      hdr.push(name);
+    }
+  });
+  const idx = {};
+  COLUMNS.forEach(name => { idx[name] = hdr.findIndex(h => h.toLowerCase() === name.toLowerCase()) + 1; });
+  return idx;
+}
+
+// Run this once from the editor. It asks Google for permission and tidies the sheet.
+function setup() {
+  const sh = sheet_();
+  const col = columns_(sh);
+  const rows = sh.getLastRow() - 1;
+  if (rows > 0) {
+    const rng = sh.getRange(2, col['Date of Death'], rows, 1);
+    const shown = rng.getDisplayValues();
+    rng.setNumberFormat('@');
+    rng.setValues(shown);
+  }
+  sh.setFrozenRows(1);
+  Logger.log('Ready. ' + rows + ' officers in the roster.');
+}
+
+function json_(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet() { return json_({ ok: true, ready: true }); }
+
+function doPost(e) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const body = JSON.parse(e.postData.contents);
+    if (cyrb53(String(body.passcode || '').trim().toUpperCase()) !== ADMIN_HASH) return json_({ ok: false, code: 401, error: 'Wrong passcode' });
+    const edits = body.edits || {};
+    const sh = sheet_();
+    const col = columns_(sh);
+    const S = v => (typeof v === 'string' ? v : (v == null ? '' : String(v))).slice(0, 45000);
+    const URL_OK = v => /^https?:\/\//i.test(v || '') ? S(v) : '';
+    const names = () => sh.getRange(1, col['Name'], sh.getLastRow(), 1).getValues().map(r => String(r[0]).trim());
+    const findRow = n => names().findIndex(x => x === n) + 1;   // 1-based row, 0 if missing
+    let changed = 0;
+
+    // 1. removals
+    Object.keys(edits).forEach(n => {
+      if (edits[n] && edits[n].del) { const r = findRow(n); if (r > 1) { sh.deleteRow(r); changed++; } }
+    });
+
+    // 2. additions and updates
+    Object.keys(edits).forEach(n => {
+      const x = edits[n];
+      if (!x || x.del) return;
+      let r = findRow(n);
+      if (!r && x.add) {
+        // put a new officer after the last officer of the same rank
+        const ranks = sh.getRange(1, col['Rank'], sh.getLastRow(), 1).getValues().map(v => String(v[0]).trim().toLowerCase());
+        let after = -1;
+        ranks.forEach((v, i) => { if (i > 0 && v === String(x.add.r || '').toLowerCase()) after = i + 1; });
+        if (after > 0) { sh.insertRowAfter(after); r = after + 1; }
+        else { r = sh.getLastRow() + 1; }
+        sh.getRange(r, col['Date of Death']).setNumberFormat('@');
+      }
+      if (!r) return;
+      const set = (name, value) => { if (col[name] > 0) sh.getRange(r, col[name]).setValue(value); };
+      if (x.add) {
+        set('Name', S(x.add.n || n));
+        set('Rank', S(x.add.r || 'Patrolman'));
+        set('Notes', S(x.add.notes));
+        set('Line of Duty', x.add.lod ? 'Yes' : '');
+      }
+      if ('e' in x) {
+        sh.getRange(r, col['Date of Death']).setNumberFormat('@');
+        set('Date of Death', S(x.dod) || (Number.isInteger(x.y) ? String(x.y) : ''));
+        set('Obituary Link', URL_OK(x.ob));
+        set('Employee No', S(x.e));
+        set('Facebook Album', URL_OK(x.fb));
+        set('Obituary Text', S(x.obt));
+      }
+      changed++;
+    });
+    SpreadsheetApp.flush();
+    return json_({ ok: true, changed: changed });
+  } catch (err) {
+    return json_({ ok: false, error: String(err && err.message || err) });
+  } finally {
+    lock.releaseLock();
+  }
+}
