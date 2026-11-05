@@ -715,7 +715,40 @@ function hostOf(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e)
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function safeUrl(u){u=String(u||'').trim();return /^https?:\/\//i.test(u)?u:'';}
 function photosLink(o){return safeUrl(o.fb)||FB_GROUP+'/search/?q='+encodeURIComponent(o.n);}
-function obitLink(o){return safeUrl(o.ob)||'https://www.google.com/search?q='+encodeURIComponent('"'+o.n+'" obituary Memphis');}
+// Common given-name ↔ nickname pairs, so a search for "William" also finds "Bill"
+const NICK={william:['bill','billy','will'],robert:['bob','bobby','rob'],richard:['dick','rick','ricky'],
+  james:['jim','jimmy'],john:['johnny','jack'],joseph:['joe','joey'],charles:['charlie','chuck'],
+  thomas:['tom','tommy'],michael:['mike'],edward:['ed','eddie'],ronald:['ron','ronnie'],
+  donald:['don','donnie'],gerald:['jerry'],jerome:['jerry'],lawrence:['larry'],kenneth:['ken','kenny'],
+  stephen:['steve'],steven:['steve'],timothy:['tim'],daniel:['dan','danny'],david:['dave'],
+  samuel:['sam'],henry:['hank'],harold:['hal'],frederick:['fred'],raymond:['ray'],patrick:['pat'],
+  patricia:['pat','patti'],elizabeth:['betty','beth'],gregory:['greg'],douglas:['doug'],
+  benjamin:['ben','benny'],anthony:['tony'],nicholas:['nick'],leonard:['leon','len'],
+  clifford:['cliff'],mitchell:['mitch'],herbert:['herb'],walter:['walt'],woodrow:['woody'],
+  carolyn:['carol'],judith:['judy'],pamela:['pam'],kathleen:['kathy'],katherine:['kathy'],
+  rodney:['roddy'],alton:['a.c.']};
+const NICK_TO={};Object.entries(NICK).forEach(([g,ns])=>ns.forEach(n=>(NICK_TO[n]=NICK_TO[n]||[]).push(g)));
+function nameVariants(full){
+  const words=String(full||'').replace(/["“”'‘’()]/g,' ').replace(/,/g,' ').trim().split(/\s+/)
+    .filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
+  if(words.length<2)return [words.join(' ')];
+  const first=words[0],last=words[words.length-1];
+  const firsts=new Set([first]);
+  const lower=first.toLowerCase();
+  (NICK[lower]||[]).forEach(n=>firsts.add(n));
+  (NICK_TO[lower]||[]).forEach(g=>firsts.add(g));
+  // a nickname written in the middle, e.g. "William Billy Wicks" or "Robert Bobby Simmons"
+  words.slice(1,-1).forEach(w=>{const l=w.toLowerCase();if(NICK_TO[l]||NICK[l])firsts.add(w);});
+  const cap=s=>s.length<3&&s.includes('.')?s.toUpperCase():s.charAt(0).toUpperCase()+s.slice(1);
+  const seen=new Set();
+  return [...firsts].map(f=>cap(f)+' '+last).filter(n=>{const k=n.toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
+}
+function obitSearchLink(o){
+  const v=nameVariants(o.n);
+  const names=v.map(n=>'"'+n+'"').join(' OR ');
+  return 'https://www.google.com/search?q='+encodeURIComponent((v.length>1?'('+names+')':names)+' obituary Shelby County Sheriff');
+}
+function obitLink(o){return safeUrl(o.ob)||obitSearchLink(o);}
 
 function setSheetStatus(live,msg){
   document.getElementById('sheetDot').className=live?'live':'';
