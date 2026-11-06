@@ -1506,7 +1506,13 @@ if(SHEET_ID&&!GOOGLE_URL){
 }
 document.getElementById('searchInput').value='';
 setTimeout(()=>{const s=document.getElementById('searchInput');if(s&&/@/.test(s.value)){s.value='';render();}},1500);
-loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();if(location.hash==='#share')showShare();});
+loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();openFromHash();});
+function openFromHash(){
+  const hsh=decodeURIComponent(location.hash.slice(1)).replace(/\+/g,' ');
+  if(hsh==='share')return showShare();
+  if(hsh.startsWith('officer=')){const n=hsh.slice(8).trim().toLowerCase();const i=DATA.findIndex(o=>o.n.toLowerCase()===n);if(i>=0)showDetail(i);}
+}
+window.addEventListener('hashchange',openFromHash);
 </script>
 </body>
 </html>
