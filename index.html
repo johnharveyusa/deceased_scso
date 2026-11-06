@@ -760,7 +760,7 @@ function obitSearchLink(o){
 function commercialAppealLink(o){
   const v=nameVariants(o.n).slice(0,4);
   const names=v.flatMap(n=>{const w=n.split(' ');return ['"'+n+'"','"'+w[0]+' * '+w.slice(1).join(' ')+'"'];}).join(' OR ');
-  return 'https://www.google.com/search?q='+encodeURIComponent('(site:legacy.com/us/obituaries/commercialappeal OR site:commercialappeal.com) ('+names+')');
+  return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary "Commercial Appeal"');
 }
 function lastNameSearchLink(o){
   const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
