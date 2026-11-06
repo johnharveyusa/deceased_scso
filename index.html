@@ -214,6 +214,10 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .gal-add{display:block;margin-top:8px;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#2c2a15;border:1px solid var(--khaki);color:var(--khaki-light);padding:12px 18px;border-radius:8px;font-size:16px;z-index:500;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
+.need-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:20px;border:1px dashed var(--khaki);background:rgba(212,196,132,.08);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:12px;font-weight:600;letter-spacing:1.5px;cursor:pointer}
+.need-btn.on{background:#d4c484;color:#1a1a12;border-style:solid}
+.rank-need{margin-left:auto;padding:3px 9px;border-radius:12px;border:1px dashed var(--khaki-dim);background:transparent;color:var(--khaki-light);font-family:'Cinzel',serif;font-size:10px;letter-spacing:1px;cursor:pointer}
+.rank-need.on{background:#d4c484;color:#1a1a12;border-style:solid}
 .noobit-tag{display:inline-block;margin-left:4px;padding:1px 6px;border-radius:3px;border:1px dashed var(--khaki-dim);color:var(--text);font-size:8.5px;letter-spacing:1px}
 .d-noobit{margin-top:14px;padding:12px 14px;border:1px dashed var(--khaki-dim);border-radius:8px;font-size:15px;line-height:1.5;color:var(--text-bright);background:rgba(14,17,10,.5)}
 .d-noobit b{color:var(--khaki)}
@@ -252,6 +256,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
     <input type="search" id="searchInput" name="eow-search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search by name, notes or S-number..." oninput="render()">
   </div>
   <div class="pills" id="pills"></div>
+  <div id="needBar" style="margin-top:8px"></div>
   <div id="adminTools"><button id="addOfficerBtn" onclick="showAddForm()">＋ ADD OFFICER</button><button id="howtoBtn" onclick="showHowTo()">▶ HOW-TO VIDEO</button></div>
 </div>
 
@@ -629,6 +634,8 @@ const BASE_JSON=JSON.stringify(EMBEDDED);
 const RANK_ORDER=["Sheriff","Chief Deputy","CAO","Chief Inspector","Asst Chief","Inspector","Captain","Lieutenant","Sergeant","Patrolman","Reserve"];
 let DATA=[];
 let activeRank="all";
+let needOnly=false;
+const needsObit=o=>!o.ob&&!o.obt;
 
 // ── GOOGLE SHEET LOADER ───────────────────────────────────────
 async function loadSheet(){
@@ -776,13 +783,28 @@ function buildPills(){
     if(cnt) html+=`<button class="pill" onclick="setRank('${rk}',this)">${rk.toUpperCase()} <span class="n">${cnt}</span></button>`;
   });
   document.getElementById('pills').innerHTML=html;
+  drawNeedBar();
   document.getElementById('yodCount').textContent=DATA.filter(o=>o.y).length;
   document.getElementById('lodCount').textContent=DATA.filter(o=>o.lod).length;
 }
 
+function drawNeedBar(){
+  const pool=DATA.filter(o=>activeRank==='all'||o.r===activeRank);
+  const n=pool.filter(needsObit).length;
+  const where=activeRank==='all'?'':' ('+activeRank.toUpperCase()+')';
+  document.getElementById('needBar').innerHTML=needOnly
+    ?`<button class="need-btn on" onclick="setNeed(false)">✓ SHOWING ONLY ${n} WITH NO OBITUARY${where} · SHOW ALL</button>`
+    :`<button class="need-btn" onclick="setNeed(true)">📜 SHOW ONLY THOSE NEEDING AN OBITUARY${where} <span class="n">${n}</span></button>`;
+}
+function setNeed(on,rk){
+  needOnly=on;
+  if(rk){activeRank=rk;document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active',p.getAttribute('onclick')==="setRank('"+rk+"',this)"));}
+  render();
+  if(rk)window.scrollTo({top:document.getElementById('listWrap').offsetTop-80,behavior:'smooth'});
+}
 function clearSearch(){
   const s=document.getElementById('searchInput');if(s)s.value='';
-  activeRank='all';
+  activeRank='all';needOnly=false;
   document.querySelectorAll('.pill').forEach((p,i)=>p.classList.toggle('active',i===0));
   render();
 }
@@ -798,12 +820,15 @@ function render(){
   const q=document.getElementById('searchInput').value.toLowerCase().trim();
   const filtered=DATA.filter(o=>{
     if(activeRank!=='all'&&o.r!==activeRank)return false;
+    if(needOnly&&!needsObit(o))return false;
     if(q&&!o.n.toLowerCase().includes(q)&&!o.notes.toLowerCase().includes(q)&&!(o.e||'').toLowerCase().includes(q))return false;
     return true;
   });
+  drawNeedBar();
   document.getElementById('visCount').textContent=filtered.length;
   document.getElementById('footCount').textContent=filtered.length+' OF '+DATA.length+' OFFICERS';
   const wrap=document.getElementById('listWrap');
+  if(!filtered.length&&needOnly&&!q){wrap.innerHTML='<div class="empty"><div style="font-size:32px">✓</div><p>EVERY OFFICER HERE HAS AN OBITUARY</p><button class="d-btn" style="width:auto;margin:14px auto 0;display:inline-flex" onclick="setNeed(false)">SHOW EVERYONE</button></div>';return;}
   if(!filtered.length){wrap.innerHTML='<div class="empty"><div style="font-size:32px">🕯</div><p>NO OFFICERS FOUND</p>'+(q?'<p style="font-size:15px;letter-spacing:1px;text-transform:none;font-family:\'Crimson Pro\',serif;color:var(--text-bright)">Nobody matches “'+esc(q)+'”.</p><button class="d-btn" style="width:auto;margin:14px auto 0;display:inline-flex" onclick="clearSearch()">✕ CLEAR SEARCH &amp; SHOW EVERYONE</button>':'')+'</div>';return;}
   const groups={};
   filtered.forEach(o=>{if(!groups[o.r])groups[o.r]=[];groups[o.r].push(o);});
@@ -811,7 +836,7 @@ function render(){
   RANK_ORDER.forEach(rk=>{
     if(!groups[rk])return;
     const officers=groups[rk];
-    html+=`<div class="rank-group"><div class="rank-hdr"><span class="rank-lbl">${rk.toUpperCase()}</span><span class="rank-cnt">${officers.length} OFFICER${officers.length!==1?'S':''}</span></div>`;
+    html+=`<div class="rank-group"><div class="rank-hdr"><span class="rank-lbl">${rk.toUpperCase()}</span><span class="rank-cnt">${officers.length} OFFICER${officers.length!==1?'S':''}</span>${(()=>{const m=DATA.filter(x=>x.r===rk&&needsObit(x)).length;if(!m)return '<span class="rank-cnt" style="margin-left:auto">✓ ALL HAVE OBITUARIES</span>';return (needOnly&&activeRank===rk)?`<button class="rank-need on" onclick="setNeed(false,'all')">SHOW EVERYONE</button>`:`<button class="rank-need" onclick="setNeed(true,'${rk}')">${m} NEED OBITUARY</button>`;})()}</div>`;
     officers.forEach(o=>{
       const idx=DATA.indexOf(o);
       html+=`<div class="row${o.lod?' lod':''}" onclick="showDetail(${idx})">
