@@ -745,9 +745,10 @@ function nameVariants(full){
 }
 function obitSearchLink(o){
   const v=nameVariants(o.n);
-  const names=v.map(n=>'"'+n+'"').join(' OR ');
+  // each name both exactly and with a wildcard for a middle name or initial: "John * Carlisle"
+  const names=v.flatMap(n=>{const w=n.split(' ');return ['"'+n+'"','"'+w[0]+' * '+w.slice(1).join(' ')+'"'];}).join(' OR ');
   const yr=o.y?' '+o.y:'';
-  return 'https://www.google.com/search?q='+encodeURIComponent((v.length>1?'('+names+')':names)+' obituary "Shelby County" (sheriff OR deputy OR "sheriff\'s department")'+yr);
+  return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary "Shelby County" (sheriff OR deputy OR "sheriff\'s department")'+yr);
 }
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
