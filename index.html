@@ -750,6 +750,10 @@ function obitSearchLink(o){
   const yr=o.y?' '+o.y:'';
   return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary "Shelby County" (sheriff OR deputy OR "sheriff\'s department")'+yr);
 }
+function lastNameSearchLink(o){
+  const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
+  return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary Shelby sheriff'+(o.y?' '+o.y:''));
+}
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
   const first=words[0]||'',last=words[words.length-1]||'';
@@ -860,6 +864,8 @@ function showDetail(idx){
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📜</span><span>${o.ob?'ORIGINAL OBITUARY PAGE':'FIND OBITUARY ONLINE'}<small>${o.ob?'Opens the funeral home or newspaper page':'None on file yet · opens a web search'}</small></span></a>
+      ${o.ob?'':`<a class="d-btn" href="${esc(lastNameSearchLink(o))}" target="_blank" rel="noopener">
+        <span class="ic">🔎</span><span>WIDER SEARCH · LAST NAME ONLY<small>Try this if the first search finds nothing</small></span></a>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(findAGraveLink(o))}" target="_blank" rel="noopener">
         <span class="ic">🪦</span><span>SEARCH FIND A GRAVE<small>Burial records in Tennessee${o.y?' · died '+o.y:''}</small></span></a>`}
       <a class="d-btn" href="${FB_GROUP}" target="_blank" rel="noopener">
