@@ -894,6 +894,8 @@ function showDetail(idx){
     </div>`:''}
     ${(o.gal&&o.gal.length)?`<div class="d-gal"><h4>PHOTOS (${o.gal.length})</h4><div class="gal-grid">${o.gal.map((g,i)=>`<img src="${esc(g)}" loading="lazy" alt="Photo ${i+1} of ${esc(o.n)}" onclick="openLightbox(this.src)">`).join('')}</div></div>`:''}
     <div class="d-actions">
+      <button class="d-btn" onclick="copyOfficerLink(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
+        <span class="ic">🔗</span><span>COPY LINK TO THIS OFFICER<small>Paste it into a Facebook post or a text, and it opens this page</small></span></button>
       <a class="d-btn primary" href="${esc(sendPhotoLink(o))}">
         <span class="ic">✉️</span><span>SEND A PHOTO OR ARTICLE<small>Opens your email · attach a photo, clipping or obituary · an administrator adds it here</small></span></a>
       <a class="d-btn" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
@@ -952,6 +954,13 @@ function adminToggle(){
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').scrollTop=0;
   setTimeout(()=>document.getElementById('admPass').focus(),50);
+}
+function officerUrl(n){return 'https://johnharveyusa.github.io/deceased_scso/#officer='+encodeURIComponent(n).replace(/%20/g,'+');}
+function copyOfficerLink(n){
+  const u=officerUrl(n);
+  const done=()=>toast('✓ Link copied. Paste it into your post.');
+  if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(done,()=>prompt('Copy this link:',u));
+  else prompt('Copy this link:',u);
 }
 function showShare(pre){
   const opts=DATA.slice().sort((a,b)=>a.n.localeCompare(b.n)).map(o=>`<option value="${esc(o.n)}"${o.n===pre?' selected':''}>${esc(o.n)} · ${esc(o.r)}</option>`).join('');
