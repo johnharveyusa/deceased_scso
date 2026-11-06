@@ -744,15 +744,15 @@ function nameVariants(full){
   return [...firsts].map(f=>cap(f)+' '+last).filter(n=>{const k=n.toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
 }
 function obitSearchLink(o){
-  const v=nameVariants(o.n);
+  const v=nameVariants(o.n).slice(0,4);
   // each name both exactly and with a wildcard for a middle name or initial: "John * Carlisle"
   const names=v.flatMap(n=>{const w=n.split(' ');return ['"'+n+'"','"'+w[0]+' * '+w.slice(1).join(' ')+'"'];}).join(' OR ');
   const yr=o.y?' '+o.y:'';
-  return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary "Shelby County" (sheriff OR deputy OR "sheriff\'s department")'+yr);
+  return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+yr);
 }
 function lastNameSearchLink(o){
   const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
-  return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary Shelby sheriff'+(o.y?' '+o.y:''));
+  return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+(o.y?' '+o.y:''));
 }
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
