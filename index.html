@@ -757,6 +757,11 @@ function obitSearchLink(o){
   const yr=o.y?' '+o.y:'';
   return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+yr);
 }
+function commercialAppealLink(o){
+  const v=nameVariants(o.n).slice(0,4);
+  const names=v.flatMap(n=>{const w=n.split(' ');return ['"'+n+'"','"'+w[0]+' * '+w.slice(1).join(' ')+'"'];}).join(' OR ');
+  return 'https://www.google.com/search?q='+encodeURIComponent('(site:legacy.com/us/obituaries/commercialappeal OR site:commercialappeal.com) ('+names+')');
+}
 function lastNameSearchLink(o){
   const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
   return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+(o.y?' '+o.y:''));
@@ -889,6 +894,8 @@ function showDetail(idx){
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📜</span><span>${o.ob?'ORIGINAL OBITUARY PAGE':'FIND OBITUARY ONLINE'}<small>${o.ob?'Opens the funeral home or newspaper page':'None on file yet · opens a web search'}</small></span></a>
+      ${o.ob?'':`<a class="d-btn" href="${esc(commercialAppealLink(o))}" target="_blank" rel="noopener">
+        <span class="ic">📰</span><span>SEARCH THE COMMERCIAL APPEAL<small>Memphis newspaper obituaries</small></span></a>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(lastNameSearchLink(o))}" target="_blank" rel="noopener">
         <span class="ic">🔎</span><span>WIDER SEARCH · LAST NAME ONLY<small>Try this if the first search finds nothing</small></span></a>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(findAGraveLink(o))}" target="_blank" rel="noopener">
