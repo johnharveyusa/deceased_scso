@@ -303,7 +303,7 @@ const FB_GROUP = 'https://www.facebook.com/groups/166304914010979';
 
 // ── EMBEDDED DATA (fallback / current) ───────────────────────
 const EMBEDDED = [
-{n:"Eugene Barksdale",r:"Sheriff",u:1,y:2022,lod:false,notes:"",e:"S-0000",ob:"https://www.memorialparkfuneralandcemetery.com/obituaries/eugene-barksdale/obituary",fb:"",dod:"03/07/2022"},
+{n:"Eugene Barksdale",r:"Sheriff",u:1,y:2022,lod:false,notes:"",e:"S-0001",ob:"https://www.memorialparkfuneralandcemetery.com/obituaries/eugene-barksdale/obituary",fb:"",dod:"03/07/2022"},
 {n:"A.C. Gilless",r:"Sheriff",u:1,y:2004,lod:false,notes:"",e:"S-0000",ob:"https://www.findagrave.com/memorial/12235989/alton_clay-gilless",fb:"",dod:"11/26/2004"},
 {n:"William N Morris",r:"Sheriff",u:1,y:2025,lod:false,notes:"",e:"S-0000",ob:"https://www.legacy.com/us/obituaries/dailymemphian/name/william-bill-morris-jr-obituary?id=59017351",fb:"",dod:"07/25/2025"},
 {n:"Roy Nixon",r:"Sheriff",u:1,y:2019,lod:false,notes:"",e:"S-0000",ob:"https://www.memorialparkfuneralandcemetery.com/obituaries/roy-nixon-32960/obituary",fb:"",dod:"06/22/2019"},
@@ -1313,7 +1313,7 @@ const GH_REPO='johnharveyusa/deceased_scso', GH_FILE='index.html', GH_KEY='scso_
 function ghToken(){try{return localStorage.getItem(GH_KEY)||'';}catch(e){return '';}}
 // ENC_KEY holds John's GitHub key, locked with the administrator passcode.
 // Only someone who signs in with the passcode can unlock it, in their own browser.
-const ENC_KEY = '';
+const ENC_KEY = 'T/3wIpbeygbJgctizIS9LErRuO4+ruWFRD4Dop6+XC4Pby4ZJ/98D9yMlDJr3Qm00cEw1ExDstOYY63aOqOKW8ySAgwTE3BJinpZgLBOxN7w1Vp0Xjk2KHcm78Pp4ZVcPa7dAbOL62hb/YTZiMwMdXiYsT5V7kEVKJPqNDd//l0zd5tktgEhG1o=';
 let PENDING_ENC = '';
 function b64u8(s){const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
 function u8b64(u){let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
