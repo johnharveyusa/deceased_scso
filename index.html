@@ -1568,6 +1568,7 @@ loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scs
 function openFromHash(){
   const hsh=decodeURIComponent(location.hash.slice(1)).replace(/\+/g,' ');
   if(hsh==='share')return showShare();
+  if(hsh==='setup'){try{localStorage.removeItem(GH_KEY);}catch(e){}return showKeySetup();}
   if(hsh.startsWith('officer=')){const n=hsh.slice(8).trim().toLowerCase();const i=DATA.findIndex(o=>o.n.toLowerCase()===n);if(i>=0)showDetail(i);}
 }
 window.addEventListener('hashchange',openFromHash);
