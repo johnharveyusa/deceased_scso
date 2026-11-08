@@ -1435,6 +1435,8 @@ async function publishWithKey(){
     else showKeySetup();
     return;
   }
+  // If the key is not yet built into the page, lock it with the passcode now so every admin can save
+  if(!ENC_KEY&&!PENDING_ENC){let pass='';try{pass=sessionStorage.getItem('scso_eow_pass')||'';}catch(e){}if(pass){try{PENDING_ENC=await lockKey(tok,pass);}catch(e){}}}
   PUBLISHING=true;updateSaveBar();
   const msg=document.getElementById('saveMsg');
   const api='https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE;
