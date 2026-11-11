@@ -839,7 +839,7 @@ function findAGraveLink(o){
   const last=words[words.length-1]||'';
   // Find a Grave's own search matches "sheriff" to "Sherry" and accepts either word, so search its pages
   // through Google, which requires every quoted word to be on the page exactly.
-  return 'https://www.google.com/search?q='+encodeURIComponent('site:findagrave.com/memorial "'+last+'" "Shelby" "sheriff"');
+  return 'https://www.google.com/search?q='+encodeURIComponent('site:findagrave.com/memorial "'+last+'" ("Shelby County Sheriff" OR "sheriff for Shelby County" OR "Shelby County deputy") Tennessee');
 }
 function obitLink(o){return safeUrl(o.ob)||obitSearchLink(o);}
 
