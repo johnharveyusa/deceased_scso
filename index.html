@@ -836,11 +836,10 @@ function lastNameSearchLink(o){
 }
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
-  const first=words[0]||'',last=words[words.length-1]||'';
-  // last name only (first names on our list are often nicknames or initials), and only memorials whose biography mentions both "Shelby" and "sheriff"
-  let u='https://www.findagrave.com/memorial/search?lastname='+encodeURIComponent(last)+'&bio='+encodeURIComponent('"Shelby" "sheriff"');
-  if(o.y)u+='&deathyear='+o.y+'&deathyearfilter=exact';
-  return u;
+  const last=words[words.length-1]||'';
+  // Find a Grave's own search matches "sheriff" to "Sherry" and accepts either word, so search its pages
+  // through Google, which requires every quoted word to be on the page exactly.
+  return 'https://www.google.com/search?q='+encodeURIComponent('site:findagrave.com/memorial "'+last+'" "Shelby" "sheriff"');
 }
 function obitLink(o){return safeUrl(o.ob)||obitSearchLink(o);}
 
