@@ -837,7 +837,8 @@ function lastNameSearchLink(o){
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
   const first=words[0]||'',last=words[words.length-1]||'';
-  let u='https://www.findagrave.com/memorial/search?firstname='+encodeURIComponent(first)+'&lastname='+encodeURIComponent(last)+'&location='+encodeURIComponent('Tennessee, United States of America');
+  // last name only (first names on our list are often nicknames or initials), and only memorials whose biography mentions "sheriff"
+  let u='https://www.findagrave.com/memorial/search?lastname='+encodeURIComponent(last)+'&bio=sheriff';
   if(o.y)u+='&deathyear='+o.y+'&deathyearfilter=exact';
   return u;
 }
