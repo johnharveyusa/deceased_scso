@@ -832,6 +832,19 @@ function commercialAppealLink(o){
   const names=v.flatMap(n=>{const w=n.split(' ');return ['"'+n+'"','"'+w[0]+' * '+w.slice(1).join(' ')+'"'];}).join(' OR ');
   return 'https://www.google.com/search?q='+encodeURIComponent('('+names+') obituary "Commercial Appeal"');
 }
+// Ancestry: U.S. Social Security Death Index (collection 3693). Needs an Ancestry login.
+function nameParts(o){
+  const w=String(o.n||'').replace(/["“”'‘’()]/g,' ').replace(/\./g,'. ').trim().split(/\s+/).filter(x=>x&&!/^(jr|sr|ii|iii|iv)\.?$/i.test(x));
+  return {first:(w.length>1&&!/^[A-Z]\.?$/i.test(w[0]))?w[0]:'',last:w[w.length-1]||''};
+}
+function ancestryLink(o,mode){
+  const p=nameParts(o);
+  let u='https://www.ancestry.com/search/collections/3693?name='+encodeURIComponent((mode==='full'&&p.first?p.first:'')+'_'+p.last)+'&name_x=_1';
+  u+='&residence=_memphis%2Ctn&residence_x=_1-0&event=_Memphis-Tn&event_x=_1-0';
+  if(mode==='kw')u+='&keyword='+encodeURIComponent('Shelby Sheriff retired obituary')+'&keyword_x=1';
+  if(o.y)u+='&death='+o.y+'&death_x=1-0-0';
+  return u;
+}
 function lastNameSearchLink(o){
   const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
   return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+(o.y?' '+o.y:''));
@@ -971,6 +984,11 @@ function showDetail(idx){
         <span class="ic">📰</span><span>SEARCH THE COMMERCIAL APPEAL<small>Memphis newspaper obituaries</small></span></a>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(lastNameSearchLink(o))}" target="_blank" rel="noopener">
         <span class="ic">🔎</span><span>WIDER SEARCH · LAST NAME ONLY<small>Try this if the first search finds nothing</small></span></a>`}
+      ${o.ob?'':`<div class="d-btn" style="cursor:default;flex-wrap:wrap">
+        <span class="ic">🧾</span><span>SOCIAL SECURITY DEATH INDEX (ANCESTRY)<small>Needs an Ancestry login ·
+        <a href="${esc(ancestryLink(o,'full'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">First + last name</a> ·
+        <a href="${esc(ancestryLink(o,'last'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">Last name only</a> ·
+        <a href="${esc(ancestryLink(o,'kw'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">Last name + Shelby Sheriff</a></small></span></div>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(findAGraveLink(o))}" target="_blank" rel="noopener">
         <span class="ic">🪦</span><span>SEARCH FIND A GRAVE<small>Burial records in Tennessee${o.y?' · died '+o.y:''}</small></span></a>`}
       <a class="d-btn" href="${FB_GROUP}" target="_blank" rel="noopener">
