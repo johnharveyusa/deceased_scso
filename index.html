@@ -946,6 +946,7 @@ function render(){
 let CUR_NAME=null;
 function showDetail(idx){
   const o=DATA[idx];CUR_NAME=o.n;
+  try{history.replaceState(null,'',location.pathname+officerQ(o.n));}catch(e){}
   const statusColor=o.lod?'color:var(--lod-text)':'color:var(--green-accent)';
   document.getElementById('panelContent').innerHTML=`
     <div class="badge-wrap">
@@ -1008,6 +1009,7 @@ function stopVideos(){document.querySelectorAll('#panel video').forEach(v=>v.pau
 function closeDetail(e){
   if(e&&e.target!==document.getElementById('overlay'))return;
   stopVideos();document.getElementById('overlay').classList.remove('open');
+  try{history.replaceState(null,'',location.pathname);}catch(e){}
 }
 
 // ── ADMIN SIGN-IN ─────────────────────────────────────────────
@@ -1039,7 +1041,9 @@ function adminToggle(){
   document.getElementById('panel').scrollTop=0;
   setTimeout(()=>document.getElementById('admPass').focus(),50);
 }
-function officerUrl(n){return 'https://johnharveyusa.github.io/deceased_scso/#officer='+encodeURIComponent(n).replace(/%20/g,'+');}
+function officerQ(n){return '?officer='+encodeURIComponent(n).replace(/%20/g,'+');}
+function officerUrl(n){return 'https://johnharveyusa.github.io/deceased_scso/'+officerQ(n);}
+function normName(n){return String(n||'').toLowerCase().replace(/[^a-z0-9]+/g,'');}
 function copyOfficerLink(n){
   const u=officerUrl(n);
   const done=()=>toast('✓ Link copied. Paste it into your post.');
@@ -1606,7 +1610,15 @@ function openFromHash(){
   const hsh=decodeURIComponent(location.hash.slice(1)).replace(/\+/g,' ');
   if(hsh==='share')return showShare();
   if(hsh==='setup'){try{localStorage.removeItem(GH_KEY);}catch(e){}return showKeySetup();}
-  if(hsh.startsWith('officer=')){const n=hsh.slice(8).trim().toLowerCase();const i=DATA.findIndex(o=>o.n.toLowerCase()===n);if(i>=0)showDetail(i);}
+  let want='';
+  if(hsh.startsWith('officer='))want=hsh.slice(8);
+  else{try{want=new URLSearchParams(location.search).get('officer')||'';}catch(e){}}
+  const words=String(want).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  want=normName(want);if(!want)return;
+  let i=DATA.findIndex(o=>normName(o.n)===want);
+  if(i<0)i=DATA.findIndex(o=>normName(o.n).includes(want)||want.includes(normName(o.n)));
+  if(i<0&&words.length>1)i=DATA.findIndex(o=>{const n=o.n.toLowerCase();return words.every(w=>n.includes(w));});
+  if(i>=0)showDetail(i);
 }
 window.addEventListener('hashchange',openFromHash);
 </script>
