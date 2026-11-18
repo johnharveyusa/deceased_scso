@@ -221,6 +221,17 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
 #lightbox.open{display:flex}
 #lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+#notesEdit .nv{display:flex;gap:8px;align-items:center;margin:4px 0 6px;font-size:12px;letter-spacing:1px;color:#f0d9a0}
+#notesEdit .nv input{width:auto}
+#notesEdit .nv-why{margin-bottom:8px;border-color:rgba(212,160,60,.55)}
+.note-row{display:flex;gap:6px;align-items:center;margin:6px 0}
+.note-row .nb{color:var(--khaki);font-size:18px}
+.d-edit .note-row textarea{flex:1;min-width:0;min-height:38px;resize:none;overflow:hidden;line-height:1.35}
+.note-row{align-items:flex-start}
+.note-row button{flex:0 0 auto;width:34px;height:36px;border-radius:5px;border:1px solid var(--khaki-dim);background:rgba(212,196,132,.08);color:var(--khaki-light);cursor:pointer;padding:0;font-size:12px}
+.note-row button:disabled{opacity:.3;cursor:default}
+.note-row button.del{color:#ffb0b0;border-color:rgba(255,120,120,.5)}
+.note-add{display:block;width:100%;margin-top:6px;text-align:center;padding:9px;border-radius:6px;border:1px dashed var(--khaki);background:rgba(212,196,132,.08);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 .gal-edit{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:4px}
 .gal-edit .t{position:relative}
 .gal-edit .t img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid var(--khaki-dim)}
@@ -954,22 +965,47 @@ function render(){
 
 // ── DETAIL PANEL ──────────────────────────────────────────────
 let CUR_NAME=null;
-function notesHtml(t){
-  t=String(t||'').trim();if(!t)return '';
-  let verify='',rest=t;
+const NOTE_SPLIT=/\s*;\s*|(?<=[a-z0-9)”"][.!])(?<!\b(?:Lt|Sgt|Capt|Cpl|Pvt|Mr|Mrs|Ms|Dr|Jr|Sr|St|Co|Dept|No|Gen|Col|Maj|Rev|Mt|Ft|vs|Inc|Miss|Tenn|Ark|Ala|Fla|Ga|Ky|Mo|Bro|Det|Insp|Asst|Chf|Off|Ret|ca|approx)\.)\s+(?=[A-Z0-9“"])/;
+function splitNotes(t){
+  t=String(t||'').trim();let verify='',rest=t;
   if(/^NOT YET VERIFIED/i.test(t)){
     const m=t.match(/^(.*?[.])\s+(?=[A-Z0-9"“])/);
     if(m){verify=m[1];rest=t.slice(m[0].length).trim();}else{verify=t;rest='';}
+    verify=verify.replace(/^NOT YET VERIFIED\s*/i,'').replace(/^[—–-]\s*/,'').replace(/^by the Retirees group\s*[—–-]?\s*/i,'').trim();
+    verify=verify.replace(/^./,c=>c.toUpperCase())||'Please confirm.';
   }
-  let out='';
-  if(verify)out+=`<div class="d-verify"><b>⚠ NOT YET VERIFIED</b><br>${esc(verify.replace(/^NOT YET VERIFIED\s*/i,'').replace(/^[—–-]\s*/,'').replace(/^by the Retirees group\s*[—–-]?\s*/i,'').replace(/^./,c=>c.toUpperCase()))}</div>`;
-  if(rest){
-    const parts=rest.split(/\s*;\s*|(?<=[a-z0-9)”"][.!])(?<!\b(?:Lt|Sgt|Capt|Cpl|Pvt|Mr|Mrs|Ms|Dr|Jr|Sr|St|Co|Dept|No|Gen|Col|Maj|Rev|Mt|Ft|vs|Inc|Miss|Tenn|Ark|Ala|Fla|Ga|Ky|Mo|Bro|Det|Insp|Asst|Chf|Off|Ret|ca|approx)\.)\s+(?=[A-Z0-9“"])/).map(x=>x.trim().replace(/[.;]$/,'')).filter(Boolean);
-    const body=parts.length>1?`<ul>${parts.map(x=>`<li>${esc(x.charAt(0).toUpperCase()+x.slice(1))}</li>`).join('')}</ul>`:`<p>${esc(rest)}</p>`;
-    out+=`<div class="d-notes"><h4>SERVICE NOTES</h4>${body}</div>`;
-  }
+  const items=rest?rest.split(NOTE_SPLIT).map(x=>x.trim().replace(/[.;]$/,'')).filter(Boolean).map(x=>x.charAt(0).toUpperCase()+x.slice(1)):[];
+  return {verify,items,rest};
+}
+function joinNotes(verify,items){
+  items=items.map(x=>String(x).trim().replace(/[;]+/g,',').replace(/\.$/,'')).filter(Boolean);
+  let v='';
+  if(verify!==null&&verify!==undefined){let r=String(verify).trim()||'Please confirm';if(!/[.!?]$/.test(r))r+='.';v='NOT YET VERIFIED by the Retirees group — '+r;}
+  return [v,items.join('; ')].filter(Boolean).join(' ');
+}
+function notesHtml(t){
+  const {verify,items,rest}=splitNotes(t);let out='';
+  if(verify)out+=`<div class="d-verify"><b>⚠ NOT YET VERIFIED</b><br>${esc(verify)}</div>`;
+  if(items.length)out+=`<div class="d-notes"><h4>SERVICE NOTES</h4>${items.length>1?`<ul>${items.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:`<p>${esc(rest)}</p>`}</div>`;
   return out;
 }
+// ── Notes editor (admins): one box per note, add / change / delete / reorder ──
+let NOTE_ITEMS=[],NOTE_VERIFY=null;
+function initNotesEdit(t){const sp=splitNotes(t);NOTE_ITEMS=sp.items.slice();NOTE_VERIFY=sp.verify?sp.verify:null;renderNotesEdit(false);}
+function syncNotes(){document.getElementById('edNo').value=joinNotes(NOTE_VERIFY,NOTE_ITEMS);}
+function renderNotesEdit(sync=true){
+  const box=document.getElementById('notesEdit');if(!box)return;
+  box.innerHTML=`<label class="nv"><input type="checkbox" ${NOTE_VERIFY!==null?'checked':''} onchange="NOTE_VERIFY=this.checked?'Please confirm.':null;renderNotesEdit()"> MARK AS NOT YET VERIFIED</label>
+    ${NOTE_VERIFY!==null?`<input class="nv-why" value="${esc(NOTE_VERIFY)}" placeholder="Why? e.g. Found in a newspaper notice; please confirm." oninput="NOTE_VERIFY=this.value;syncNotes()">`:''}
+    ${NOTE_ITEMS.map((x,i)=>`<div class="note-row"><span class="nb">•</span><textarea rows="1" placeholder="Type a note" oninput="NOTE_ITEMS[${i}]=this.value.split(String.fromCharCode(10)).join(' ');syncNotes();fitNote(this)">${esc(x)}</textarea>
+      <button type="button" title="Move up" onclick="moveNote(${i},-1)"${i===0?' disabled':''}>▲</button><button type="button" title="Move down" onclick="moveNote(${i},1)"${i===NOTE_ITEMS.length-1?' disabled':''}>▼</button><button type="button" class="del" title="Delete this note" onclick="NOTE_ITEMS.splice(${i},1);renderNotesEdit()">✕</button></div>`).join('')}
+    ${NOTE_ITEMS.length?'':'<div class="hint" style="margin:4px 0">No notes yet.</div>'}
+    <button type="button" class="note-add" onclick="NOTE_ITEMS.push('');renderNotesEdit();const r=document.querySelectorAll('#notesEdit .note-row textarea');r[r.length-1].focus()">＋ ADD A NOTE</button>`;
+  box.querySelectorAll('.note-row textarea').forEach(fitNote);
+  if(sync)syncNotes();
+}
+function fitNote(t){t.style.height='auto';t.style.height=(t.scrollHeight+2)+'px';}
+function moveNote(i,d){const j=i+d;if(j<0||j>=NOTE_ITEMS.length)return;[NOTE_ITEMS[i],NOTE_ITEMS[j]]=[NOTE_ITEMS[j],NOTE_ITEMS[i]];renderNotesEdit();}
 function navOrder(){
   const rows=[...document.querySelectorAll('.row[onclick]')].map(r=>{const m=(r.getAttribute('onclick')||'').match(/showDetail\((\d+)\)/);return m?+m[1]:-1;}).filter(i=>i>=0);
   return rows.length?rows:DATA.map((_,i)=>i);
@@ -1213,8 +1249,10 @@ function toggleEdit(idx){
     <input id="edN" value="${esc(o.n)}" autocomplete="off">
     <label>RANK</label>
     <select id="edR">${RANK_ORDER.map(r=>`<option${r===o.r?' selected':''}>${r}</option>`).join('')}</select>
-    <label>NOTE (OPTIONAL)</label>
-    <input id="edNo" value="${esc(o.notes)}" placeholder="e.g. Later police chief of ..." autocomplete="off">
+    <label>SERVICE NOTES</label>
+    <input id="edNo" type="hidden" value="${esc(o.notes)}">
+    <div id="notesEdit"></div>
+    <div class="hint">One fact per box, e.g. "Retired as Lieutenant in 1990" or "Army veteran". Use ✕ to delete a note and ▲▼ to change the order.</div>
     <label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="edL" style="width:auto"${o.lod?' checked':''}> DIED IN THE LINE OF DUTY</label>
     <label>EMPLOYEE NO.</label>
     <input id="edE" value="${esc(o.e)}" placeholder="S-1234" autocomplete="off">
@@ -1237,6 +1275,7 @@ function toggleEdit(idx){
   PH_PENDING=undefined;
   if(GOOGLE_URL){const box=document.getElementById('editBox');[...box.querySelectorAll('.ph-edit,.gal-edit,.gal-add')].forEach(el=>{el.style.display='none';let s=el.previousElementSibling;if(s&&s.tagName==='LABEL')s.style.display='none';let n=el.nextElementSibling;if(n&&n.classList.contains('hint'))n.style.display='none';});}
   GAL_PENDING=(o.gal||[]).slice();renderGalEdit();
+  initNotesEdit(o.notes);
   document.getElementById('edE').focus();
 }
 let GAL_PENDING=[];
