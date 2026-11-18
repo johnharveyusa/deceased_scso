@@ -134,7 +134,17 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .d-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .d-field label{font-family:'Cinzel',serif;font-size:10.5px;letter-spacing:2px;color:var(--text);display:block;margin-bottom:3px}
 .d-field p{font-family:'Crimson Pro',serif;font-size:16px;color:var(--text-bright)}
-.d-notes{background:rgba(14,17,10,.6);border-left:3px solid var(--green-mid);padding:8px 12px;border-radius:0 4px 4px 0;font-style:italic;font-size:13px;color:var(--khaki-dim);margin-top:4px;line-height:1.5}
+.d-notes{margin-top:14px;background:rgba(14,17,10,.6);border:1px solid var(--khaki-dim);border-radius:8px;padding:14px 16px}
+.d-notes h4{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--khaki);margin-bottom:8px;font-weight:600}
+.d-notes p,.d-notes li{font-family:'Crimson Pro',serif;font-size:17px;line-height:1.5;color:var(--text-bright)}
+.d-notes ul{margin:0;padding-left:20px}.d-notes li{margin:3px 0}
+.d-verify{margin-top:14px;background:rgba(212,160,60,.12);border:1px solid rgba(212,160,60,.55);border-radius:8px;padding:10px 14px;font-size:15px;line-height:1.45;color:#f0d9a0}
+.d-verify b{color:#ffd88a;letter-spacing:1px}
+.d-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
+.d-nav button{flex:0 0 auto;background:rgba(212,196,132,.10);border:1px solid var(--khaki-dim);border-radius:6px;color:var(--khaki-light);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;padding:9px 12px;cursor:pointer;min-width:96px}
+.d-nav button:disabled{opacity:.35;cursor:default}
+.d-nav span{font-size:12px;letter-spacing:1px;color:var(--text);text-align:center}
+.d-nav.bottom{margin:16px 0 4px}
 .btn-close{
   width:100%;margin-top:18px;padding:13px;
   background:rgba(74,122,40,.18);
@@ -944,11 +954,46 @@ function render(){
 
 // ── DETAIL PANEL ──────────────────────────────────────────────
 let CUR_NAME=null;
+function notesHtml(t){
+  t=String(t||'').trim();if(!t)return '';
+  let verify='',rest=t;
+  if(/^NOT YET VERIFIED/i.test(t)){
+    const m=t.match(/^(.*?[.])\s+(?=[A-Z0-9"“])/);
+    if(m){verify=m[1];rest=t.slice(m[0].length).trim();}else{verify=t;rest='';}
+  }
+  let out='';
+  if(verify)out+=`<div class="d-verify"><b>⚠ NOT YET VERIFIED</b><br>${esc(verify.replace(/^NOT YET VERIFIED\s*/i,'').replace(/^[—–-]\s*/,'').replace(/^by the Retirees group\s*[—–-]?\s*/i,'').replace(/^./,c=>c.toUpperCase()))}</div>`;
+  if(rest){
+    const parts=rest.split(/\s*;\s*|(?<=[a-z0-9)”"][.!])(?<!\b(?:Lt|Sgt|Capt|Cpl|Pvt|Mr|Mrs|Ms|Dr|Jr|Sr|St|Co|Dept|No|Gen|Col|Maj|Rev|Mt|Ft|vs|Inc|Miss|Tenn|Ark|Ala|Fla|Ga|Ky|Mo|Bro|Det|Insp|Asst|Chf|Off|Ret|ca|approx)\.)\s+(?=[A-Z0-9“"])/).map(x=>x.trim().replace(/[.;]$/,'')).filter(Boolean);
+    const body=parts.length>1?`<ul>${parts.map(x=>`<li>${esc(x.charAt(0).toUpperCase()+x.slice(1))}</li>`).join('')}</ul>`:`<p>${esc(rest)}</p>`;
+    out+=`<div class="d-notes"><h4>SERVICE NOTES</h4>${body}</div>`;
+  }
+  return out;
+}
+function navOrder(){
+  const rows=[...document.querySelectorAll('.row[onclick]')].map(r=>{const m=(r.getAttribute('onclick')||'').match(/showDetail\((\d+)\)/);return m?+m[1]:-1;}).filter(i=>i>=0);
+  return rows.length?rows:DATA.map((_,i)=>i);
+}
+function navStep(d){
+  const ord=navOrder();const cur=DATA.findIndex(o=>o.n===CUR_NAME);let p=ord.indexOf(cur);
+  if(p<0)return;const n=p+d;if(n<0||n>=ord.length)return;showDetail(ord[n]);
+}
+function navBar(idx,cls){
+  const ord=navOrder();const p=ord.indexOf(idx);if(p<0||ord.length<2)return '';
+  return `<div class="d-nav ${cls||''}"><button onclick="navStep(-1)"${p===0?' disabled':''}>◀ PREV</button><span>${p+1} of ${ord.length}</span><button onclick="navStep(1)"${p===ord.length-1?' disabled':''}>NEXT ▶</button></div>`;
+}
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('overlay').classList.contains('open'))return;
+  const tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT')return;
+  if(document.getElementById('editBox')&&document.getElementById('editBox').innerHTML)return;
+  if(e.key==='ArrowRight'){navStep(1);e.preventDefault();}else if(e.key==='ArrowLeft'){navStep(-1);e.preventDefault();}
+});
 function showDetail(idx){
   const o=DATA[idx];CUR_NAME=o.n;
   try{history.replaceState(null,'',location.pathname+officerQ(o.n));}catch(e){}
   const statusColor=o.lod?'color:var(--lod-text)':'color:var(--green-accent)';
   document.getElementById('panelContent').innerHTML=`
+    ${navBar(idx)}
     <div class="badge-wrap">
       ${o.ph?`<img class="officer-photo" src="${o.ph}" alt="Photo of ${esc(o.n)}"><img class="photo-badge" src="${BADGE_SRC}" alt="">`:`<img class="badge-img" src="${BADGE_SRC}" alt="SCSO Badge">`}
     </div>
@@ -964,7 +1009,7 @@ function showDetail(idx){
       <div class="d-field"><label>DATE OF DEATH</label><p>${o.dod?esc(longDate(o.dod)):(o.y||'<span style="color:var(--text)">Not on file</span>')}</p></div>
       <div class="d-field"><label>STATUS</label><p style="${statusColor}">${o.lod?'Line of Duty':'End of Watch'}</p></div>
     </div>
-    ${o.notes?`<div class="d-notes">${o.notes}</div>`:''}
+    ${notesHtml(o.notes)}
     ${(!o.ob&&!o.obt)?`<div class="d-noobit"><b>📜 No obituary on file yet.</b> If you know of one, please send the link or a copy using <i>Send a Photo or Article</i> below, or post it in the Retirees group.</div>`:''}
     ${o.obt?`<div class="d-obit"><h4>OBITUARY</h4>
       <div class="txt${o.obt.length>900?' clip':''}" id="obitTxt">${esc(o.obt)}</div>
@@ -999,6 +1044,7 @@ function showDetail(idx){
         <span class="ic">🎖</span><span>DOWNLOAD MEMORIAL BANNER<small>For his album cover or a tribute post</small></span></button>
     </div>
     <div class="d-help">Facebook links open only for members of the private SCSO Retirees group.</div>
+    ${navBar(idx,'bottom')}
 
   `;
   document.getElementById('overlay').classList.add('open');
