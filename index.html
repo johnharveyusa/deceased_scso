@@ -217,10 +217,19 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .d-gal{margin-top:14px;background:rgba(14,17,10,.6);border:1px solid var(--khaki-dim);border-radius:8px;padding:14px 16px}
 .d-gal h4{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--khaki);margin-bottom:10px;font-weight:600}
 .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
-.gal-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#0e110a}
-#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:none;align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
+.gal-grid img{width:100%;aspect-ratio:3/4;object-fit:contain;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#0e110a}
+#lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:400;display:none;flex-direction:column}
 #lightbox.open{display:flex}
-#lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+#lightbox .lb-bar{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:10px;padding:10px 12px;background:rgba(14,17,10,.95);border-bottom:1px solid var(--khaki-dim)}
+#lightbox .lb-bar button{background:rgba(212,196,132,.12);border:1px solid var(--khaki-dim);border-radius:6px;color:var(--khaki-light);font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;padding:9px 12px;cursor:pointer;min-width:90px}
+#lightbox .lb-bar button:disabled{opacity:.3;cursor:default}
+#lightbox .lb-bar .lb-x{min-width:0;margin-left:auto;font-size:16px;padding:6px 12px}
+#lightbox .lb-bar span{color:var(--text);font-size:13px;letter-spacing:1px;min-width:60px;text-align:center}
+#lbScroll{flex:1 1 auto;overflow:auto;padding:12px;text-align:center;-webkit-overflow-scrolling:touch}
+#lbScroll img{display:block;margin:0 auto;border-radius:4px;background:#fff;max-width:100%}
+#lbScroll img.fit{max-height:100%;width:auto}
+#lbScroll img.tall{width:min(100%,820px);max-width:none;height:auto}
+#lightbox .lb-tip{flex:0 0 auto;text-align:center;font-size:12px;color:var(--text);padding:6px;font-style:italic}
 #notesEdit .nv{display:flex;gap:8px;align-items:center;margin:4px 0 6px;font-size:12px;letter-spacing:1px;color:#f0d9a0}
 #notesEdit .nv input{width:auto}
 #notesEdit .nv-why{margin-bottom:8px;border-color:rgba(212,160,60,.55)}
@@ -268,7 +277,16 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
   <span id="sheetMsg">DATA SOURCE: EMBEDDED</span>
 </div>
 
-<div id="lightbox" onclick="this.classList.remove('open')"><img id="lightboxImg" alt=""></div>
+<div id="lightbox" onclick="if(event.target===this||event.target.id==='lbScroll')closeLightbox()">
+  <div class="lb-bar">
+    <button type="button" id="lbPrev" onclick="lbStep(-1)">◀ PREV</button>
+    <span id="lbCount"></span>
+    <button type="button" id="lbNext" onclick="lbStep(1)">NEXT ▶</button>
+    <button type="button" class="lb-x" onclick="closeLightbox()" title="Close">✕</button>
+  </div>
+  <div id="lbScroll"><img id="lightboxImg" alt=""></div>
+  <div class="lb-tip">Scroll to read · pinch or Ctrl + scroll to zoom · arrow keys move between pictures</div>
+</div>
 <div id="saveBar">
   <span id="saveMsg"></span>
   <button onclick="publishToSite()">⬆ TRY SAVING AGAIN</button>
@@ -809,7 +827,28 @@ function sendPhotoLink(o,kind){
   const body='Officer: '+o.n+' ('+o.r+')\n\nPlease attach your '+kind+' to this email (a picture, a newspaper clipping, an obituary, or a link). You can also type what you know below.\n\nYour name:\nHow you knew him or her:\nDate of death (if known):\nWhere it is from (newspaper and date, or who took the photo):\n\nThank you. An administrator will review it and add it to the End of Watch memorial.';
   return 'mailto:'+PHOTO_EMAIL+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
 }
-function openLightbox(src){document.getElementById('lightboxImg').src=src;document.getElementById('lightbox').classList.add('open');}
+let LB_LIST=[],LB_I=0;
+function openLightbox(src){
+  LB_LIST=[...document.querySelectorAll('#panelContent img[onclick*="openLightbox"]')].map(i=>i.src);
+  LB_I=Math.max(0,LB_LIST.indexOf(src));if(!LB_LIST.length)LB_LIST=[src];
+  document.getElementById('lightbox').classList.add('open');lbShow();
+}
+function lbShow(){
+  const im=document.getElementById('lightboxImg'),sc=document.getElementById('lbScroll');
+  im.className='';im.onload=()=>{const r=im.naturalHeight/im.naturalWidth,box=sc.clientHeight/Math.max(1,sc.clientWidth);
+    // tall newspaper articles: show full width and scroll, so the print is readable
+    im.className=(r>box*1.15||im.naturalWidth>sc.clientWidth*1.4&&r>0.9)?'tall':'fit';sc.scrollTop=0;};
+  im.src=LB_LIST[LB_I];
+  document.getElementById('lbCount').textContent=LB_LIST.length>1?(LB_I+1)+' of '+LB_LIST.length:'';
+  document.getElementById('lbPrev').style.visibility=document.getElementById('lbNext').style.visibility=LB_LIST.length>1?'visible':'hidden';
+  document.getElementById('lbPrev').disabled=LB_I===0;document.getElementById('lbNext').disabled=LB_I===LB_LIST.length-1;
+}
+function lbStep(d){const n=LB_I+d;if(n<0||n>=LB_LIST.length)return;LB_I=n;lbShow();}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open');}
+(function(){let x0=null;const lb=()=>document.getElementById('lightbox');
+  document.addEventListener('touchstart',e=>{if(lb()&&lb().classList.contains('open')&&e.touches.length===1)x0=[e.touches[0].clientX,e.touches[0].clientY];else x0=null;},{passive:true});
+  document.addEventListener('touchend',e=>{if(!x0)return;const t=e.changedTouches[0],dx=t.clientX-x0[0],dy=t.clientY-x0[1];x0=null;if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*2)lbStep(dx<0?1:-1);},{passive:true});
+})();
 function hostOf(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch(e){return u;}}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function safeUrl(u){u=String(u||'').trim();return /^https?:\/\//i.test(u)?u:'';}
@@ -1019,6 +1058,9 @@ function navBar(idx,cls){
   return `<div class="d-nav ${cls||''}"><button onclick="navStep(-1)"${p===0?' disabled':''}>◀ PREV</button><span>${p+1} of ${ord.length}</span><button onclick="navStep(1)"${p===ord.length-1?' disabled':''}>NEXT ▶</button></div>`;
 }
 document.addEventListener('keydown',e=>{
+  if(document.getElementById('lightbox').classList.contains('open')){
+    if(e.key==='ArrowRight'){lbStep(1);e.preventDefault();}else if(e.key==='ArrowLeft'){lbStep(-1);e.preventDefault();}else if(e.key==='Escape')closeLightbox();
+    return;}
   if(!document.getElementById('overlay').classList.contains('open'))return;
   const tg=e.target&&e.target.tagName;if(tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT')return;
   if(document.getElementById('editBox')&&document.getElementById('editBox').innerHTML)return;
