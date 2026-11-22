@@ -44,6 +44,8 @@
   --lod-row2:#3a1414;
 }
 html,body{height:100%;overflow:hidden}
+.keep-me{display:flex!important;gap:8px;align-items:center;margin-top:12px;font-size:15px!important;letter-spacing:0!important;color:var(--text-bright)!important;text-transform:none}
+.keep-me input{width:auto!important}
 #toolsTgl{display:block;width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px dashed var(--khaki-dim);background:transparent;color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 #toolsTgl .on{color:#9fd89f}
 body.compact header .star-row,body.compact header .supertitle,body.compact header .subtitle,body.compact header .stats-row,body.compact #shareBtn,body.compact #sheetBar{display:none}
@@ -1302,7 +1304,7 @@ let IS_ADMIN = false;
 function cyrb53(s,seed=7){let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=Math.imul(h1^c,2654435761);h2=Math.imul(h2^c,1597334677);}h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);return 4294967296*(2097151&h2)+(h1>>>0);}
 function setAdmin(on){
   IS_ADMIN=on;
-  try{on?sessionStorage.setItem('scso_eow_admin','1'):(sessionStorage.removeItem('scso_eow_admin'),sessionStorage.removeItem('scso_eow_pass'));}catch(e){}
+  try{on?sessionStorage.setItem('scso_eow_admin','1'):(sessionStorage.removeItem('scso_eow_admin'),sessionStorage.removeItem('scso_eow_pass'),localStorage.removeItem('scso_eow_keep'));}catch(e){}
   document.getElementById('adminLink').textContent=on?'🔓 SIGN OUT':'🔒 ADMIN SIGN-IN';
   document.getElementById('adminTools').style.display=on?'flex':'none';
   const sb=document.getElementById('subsBtn');if(sb)sb.style.display=SUBMIT_URL?'':'none';
@@ -1316,6 +1318,8 @@ function adminToggle(){
     <label>PASSCODE</label>
     <input type="text" name="username" autocomplete="username" value="SCSO administrator" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
     <input id="admPass" type="password" name="eow-passcode" autocomplete="off" data-lpignore="true" placeholder="Enter or paste the passcode" onkeydown="if(event.key==='Enter')tryAdmin()">
+    <label class="keep-me"><input type="checkbox" id="admKeep" checked> Keep me signed in on this phone or computer</label>
+    <div class="hint" style="margin-top:2px">Only tick this on your own device. Tap SIGN OUT at the bottom of the page to forget it.</div>
     <div class="err" id="admErr"></div>
     <div class="d-edit-row"><button onclick="document.getElementById('overlay').classList.remove('open')">CANCEL</button><button class="save" id="admGo" onclick="tryAdmin()">SIGN IN</button></div>
     <p style="margin-top:14px;text-align:center"><a href="#" onclick="showHowTo();return false" style="color:var(--khaki-light);font-size:15px">▶ Watch the 2-minute how-to video</a></p>
@@ -1404,6 +1408,7 @@ function tryAdmin(){
   const p=document.getElementById('admPass').value;
   if(cyrb53(p.trim().toUpperCase())===ADMIN_HASH){
     try{sessionStorage.setItem('scso_eow_pass',p.trim());}catch(e){}
+    try{const k=document.getElementById('admKeep');if(k&&k.checked)localStorage.setItem('scso_eow_keep',p.trim());else localStorage.removeItem('scso_eow_keep');}catch(e){}
     setAdmin(true);document.getElementById('overlay').classList.remove('open');
     clearSearch();
     toast('Signed in. Tap any officer to see the Edit button.');
@@ -1945,7 +1950,7 @@ if(SHEET_ID&&!GOOGLE_URL){
 }
 document.getElementById('searchInput').value='';
 setTimeout(()=>{const s=document.getElementById('searchInput');if(s&&/@/.test(s.value)){s.value='';render();}},1500);
-loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';}catch(e){}setAdmin(a);buildPills();render();loadLive();openFromHash();});
+loadSheet().then(()=>{applyEdits();let a=false;try{a=sessionStorage.getItem('scso_eow_admin')==='1';const k=localStorage.getItem('scso_eow_keep');if(!a&&k&&cyrb53(k.toUpperCase())===ADMIN_HASH){sessionStorage.setItem('scso_eow_pass',k);a=true;}}catch(e){}setAdmin(a);buildPills();render();loadLive();openFromHash();});
 function openFromHash(){
   const hsh=decodeURIComponent(location.hash.slice(1)).replace(/\+/g,' ');
   if(hsh==='share')return showShare();
