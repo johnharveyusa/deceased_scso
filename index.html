@@ -217,6 +217,16 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .d-gal{margin-top:14px;background:rgba(14,17,10,.6);border:1px solid var(--khaki-dim);border-radius:8px;padding:14px 16px}
 .d-gal h4{font-family:'Cinzel',serif;font-size:12px;letter-spacing:3px;color:var(--khaki);margin-bottom:10px;font-weight:600}
 .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.send-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.send-grid button{text-align:left;padding:12px;border-radius:8px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--text-bright);cursor:pointer;font-family:'Crimson Pro',serif}
+.send-grid button b{display:block;font-family:'Cinzel',serif;font-size:13px;letter-spacing:1px;color:var(--khaki-light)}
+.send-grid button small{display:block;font-size:13px;color:var(--text);margin-top:3px;font-style:italic}
+.send-grid button:hover{background:rgba(212,196,132,.22)}
+.send-manual{margin-top:14px;padding:12px;border:1px dashed var(--khaki-dim);border-radius:8px;text-align:center;font-size:15px;line-height:1.6;color:var(--text-bright)}
+.send-manual b{font-size:17px;color:var(--khaki-light)}
+.send-manual button,.send-admin button{margin:6px 0 2px;padding:7px 14px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
+.send-manual span{font-size:13px;color:var(--text);font-style:italic}
+.send-admin{margin-top:14px;padding:12px;border:1px solid rgba(120,200,120,.5);border-radius:8px;background:rgba(80,140,80,.12);font-size:15px;line-height:1.5;color:var(--text-bright)}
 .gal-grid img{width:100%;aspect-ratio:3/4;object-fit:contain;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#0e110a}
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:400;display:none;flex-direction:column}
 #lightbox.open{display:flex}
@@ -241,10 +251,14 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .note-row button:disabled{opacity:.3;cursor:default}
 .note-row button.del{color:#ffb0b0;border-color:rgba(255,120,120,.5)}
 .note-add{display:block;width:100%;margin-top:6px;text-align:center;padding:9px;border-radius:6px;border:1px dashed var(--khaki);background:rgba(212,196,132,.08);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
-.gal-edit{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px;margin-top:4px}
-.gal-edit .t{position:relative}
-.gal-edit .t img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:5px;border:1px solid var(--khaki-dim)}
-.gal-edit .t button{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:none;background:rgba(0,0,0,.75);color:#fff;font-size:14px;line-height:24px;cursor:pointer;padding:0}
+.gal-row{display:flex;gap:10px;align-items:flex-start;padding:8px;margin:6px 0;border:1px solid var(--khaki-dim);border-radius:8px;background:rgba(14,17,10,.5)}
+.gal-row img{flex:0 0 auto;width:84px;height:108px;object-fit:contain;background:#0e110a;border-radius:5px;border:1px solid var(--khaki-dim);cursor:zoom-in}
+.gal-ctl{flex:1;min-width:0}
+.gal-lbl{font-size:11px;letter-spacing:2px;color:var(--khaki);margin-bottom:6px}.gal-lbl .new{color:#9fd89f}
+.gal-btns{display:flex;flex-wrap:wrap;gap:5px}
+.gal-btns button,.gal-btns .gbtn{display:inline-block;padding:7px 9px;border-radius:5px;border:1px solid var(--khaki-dim);background:rgba(212,196,132,.08);color:var(--khaki-light);font-size:11px;letter-spacing:1px;cursor:pointer;font-family:'Cinzel',serif;line-height:1.2;margin:0;text-transform:none}
+.gal-btns button:disabled{opacity:.3;cursor:default}
+.gal-btns button.del{color:#ffb0b0;border-color:rgba(255,120,120,.5)}
 .gal-add{display:block;margin-top:8px;text-align:center;padding:10px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 #toast{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);background:#2c2a15;border:1px solid var(--khaki);color:var(--khaki-light);padding:12px 18px;border-radius:8px;font-size:16px;z-index:500;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90vw;text-align:center}
 #toast.show{opacity:1}
@@ -821,18 +835,20 @@ function longDate(s){
 // and adds the good ones to the officer's gallery. The address is assembled
 // in pieces so spam robots can't easily read it from the page.
 const PHOTO_EMAIL=['johnharvey.usa','gmail.com'].join('@');
-function sendPhotoLink(o,kind){
+function mailParts(o,kind){
   kind=kind||'photo or article';
   const subj='End of Watch '+kind+': '+o.n+' ('+o.r+')';
-  const body='Officer: '+o.n+' ('+o.r+')\n\nPlease attach your '+kind+' to this email (a picture, a newspaper clipping, an obituary, or a link). You can also type what you know below.\n\nYour name:\nHow you knew him or her:\nDate of death (if known):\nWhere it is from (newspaper and date, or who took the photo):\n\nThank you. An administrator will review it and add it to the End of Watch memorial.';
-  return 'mailto:'+PHOTO_EMAIL+'?subject='+encodeURIComponent(subj)+'&body='+encodeURIComponent(body);
+  const body='Officer: '+o.n+' ('+o.r+')\nCard: '+officerUrl(o.n)+'\n\nPlease attach your '+kind+' to this email (a picture, a newspaper clipping, an obituary, or a link). You can also type what you know below.\n\nYour name:\nHow you knew him or her:\nDate of death (if known):\nWhere it is from (newspaper and date, or who took the photo):\n\nThank you. An administrator will review it and add it to the End of Watch memorial.';
+  return {subj,body};
 }
+function sendPhotoLink(o,kind){const m=mailParts(o,kind);return 'mailto:'+PHOTO_EMAIL+'?subject='+encodeURIComponent(m.subj)+'&body='+encodeURIComponent(m.body);}
 let LB_LIST=[],LB_I=0;
 function openLightbox(src){
   LB_LIST=[...document.querySelectorAll('#panelContent img[onclick*="openLightbox"]')].map(i=>i.src);
   LB_I=Math.max(0,LB_LIST.indexOf(src));if(!LB_LIST.length)LB_LIST=[src];
   document.getElementById('lightbox').classList.add('open');lbShow();
 }
+function openLightboxList(list,i){LB_LIST=list.slice();LB_I=i||0;document.getElementById('lightbox').classList.add('open');lbShow();}
 function lbShow(){
   const im=document.getElementById('lightboxImg'),sc=document.getElementById('lbScroll');
   im.className='';im.onload=()=>{const r=im.naturalHeight/im.naturalWidth,box=sc.clientHeight/Math.max(1,sc.clientWidth);
@@ -1099,8 +1115,8 @@ function showDetail(idx){
     <div class="d-actions">
       <button class="d-btn" onclick="copyOfficerLink(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
         <span class="ic">🔗</span><span>COPY LINK TO THIS OFFICER<small>Paste it into a Facebook post or a text, and it opens this page</small></span></button>
-      <a class="d-btn primary" href="${esc(sendPhotoLink(o))}">
-        <span class="ic">✉️</span><span>SEND A PHOTO OR ARTICLE<small>Opens your email · attach a photo, clipping or obituary · an administrator adds it here</small></span></a>
+      <button class="d-btn primary" onclick="showShare(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
+        <span class="ic">✉️</span><span>SEND A PHOTO OR ARTICLE<small>Send a photo, clipping or obituary by email · an administrator adds it here</small></span></button>
       <a class="d-btn" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
@@ -1187,20 +1203,35 @@ function showShare(pre){
       <label><input type="radio" name="shareKind" value="obituary or article"> An obituary or newspaper article</label>
       <label><input type="radio" name="shareKind" value="information"> A date of death or other information</label>
     </div>
+    <label>3 · WHICH EMAIL DO YOU USE?</label>
     <div class="err" id="shareErr"></div>
-    <div class="d-edit-row"><button class="save" style="flex:1" onclick="sendShare()">3 · OPEN MY EMAIL ✉️</button></div>
-    <div class="hint" style="margin-top:14px;line-height:1.5">Your email opens with the officer's name filled in. Attach your picture or clipping and press Send.<br>
-    If no email opens, send it yourself to <b>${PHOTO_EMAIL}</b> and put the officer's name in the subject.</div>
+    <div class="send-grid">
+      <button onclick="sendShare('gmail')"><b>Gmail</b><small>opens Gmail in your browser</small></button>
+      <button onclick="sendShare('outlook')"><b>Outlook · Hotmail</b><small>outlook.com, hotmail, live, msn</small></button>
+      <button onclick="sendShare('yahoo')"><b>Yahoo Mail</b><small>opens Yahoo in your browser</small></button>
+      <button onclick="sendShare('app')"><b>My email app</b><small>Mail on iPhone, Android or a desktop program</small></button>
+    </div>
+    <div class="hint" style="margin-top:14px;line-height:1.55">A new email opens with the officer's name already filled in. <b>Attach your picture or clipping</b> (the 📎 paper clip) and press <b>Send</b>.</div>
+    <div class="send-manual">Nothing opened? Send it yourself to<br><b id="shareAddr">${PHOTO_EMAIL}</b>
+      <button onclick="copyShareAddr(this)">COPY ADDRESS</button><br><span>Put the officer's name in the subject line.</span></div>
+    ${IS_ADMIN?`<div class="send-admin"><b>Administrators:</b> you can put a photo on the card yourself. Open the officer, tap <b>✎ Edit This Officer</b>, then <b>＋ Add Photos</b>, and Save.${pre?`<br><button onclick="const i=DATA.findIndex(x=>x.n===document.getElementById('shareWho').value);if(i>=0){showDetail(i);toggleEdit(i);}">✎ EDIT THIS OFFICER NOW</button>`:''}</div>`:''}
   </div>`;
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').scrollTop=0;
 }
-function sendShare(){
+function sendShare(how){
   const n=document.getElementById('shareWho').value;
-  if(!n){document.getElementById('shareErr').textContent='Please choose the officer first.';return;}
+  if(!n){document.getElementById('shareErr').textContent='Please choose the officer first (step 1).';document.getElementById('shareWho').focus();return;}
+  document.getElementById('shareErr').textContent='';
   const o=DATA.find(x=>x.n===n);const k=(document.querySelector('input[name=shareKind]:checked')||{}).value;
+  const m=mailParts(o,k),E=encodeURIComponent;
+  if(how==='gmail')return window.open('https://mail.google.com/mail/?view=cm&fs=1&to='+E(PHOTO_EMAIL)+'&su='+E(m.subj)+'&body='+E(m.body),'_blank','noopener');
+  if(how==='outlook')return window.open('https://outlook.live.com/mail/0/deeplink/compose?to='+E(PHOTO_EMAIL)+'&subject='+E(m.subj)+'&body='+E(m.body),'_blank','noopener');
+  if(how==='yahoo')return window.open('https://compose.mail.yahoo.com/?to='+E(PHOTO_EMAIL)+'&subject='+E(m.subj)+'&body='+E(m.body),'_blank','noopener');
   location.href=sendPhotoLink(o,k);
 }
+function copyShareAddr(b){const t=PHOTO_EMAIL;const done=()=>{b.textContent='✓ COPIED';setTimeout(()=>b.textContent='COPY ADDRESS',2500);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>{prompt('Copy this address:',t);});else prompt('Copy this address:',t);}
 function showHowTo(){
   document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
     <h3>▶ HOW TO SIGN IN AND UPDATE AN OFFICER</h3>
@@ -1283,10 +1314,10 @@ function toggleEdit(idx){
       </div>
     </div>
     <div class="hint">Choose a picture saved on this computer, or click in the obituary box below and paste a copied picture (Ctrl + V).</div>
-    <label>MORE PHOTOS (GALLERY)</label>
+    <label>PHOTO FOLDER (GALLERY)</label>
     <div class="gal-edit" id="galEdit"></div>
     <label class="gal-add">＋ ADD PHOTOS<input type="file" accept="image/*" multiple style="display:none" onchange="addGalleryPhotos(this.files);this.value=''"></label>
-    <div class="hint">Add photos people send in. You can pick several at once. Tap × to remove one.</div>
+    <div class="hint">Add photos or clippings people send in (you can pick several at once). For each one: 👁 view it large, ▲▼ change the order, ⟳ replace it with a better copy, ★ make it the main photo, ✕ delete it. Nothing changes on the card until you press Save.</div>
     <label>FULL NAME</label>
     <input id="edN" value="${esc(o.n)}" autocomplete="off">
     <label>RANK</label>
@@ -1323,7 +1354,30 @@ function toggleEdit(idx){
 let GAL_PENDING=[];
 function renderGalEdit(){
   const el=document.getElementById('galEdit');if(!el)return;
-  el.innerHTML=GAL_PENDING.length?GAL_PENDING.map((g,i)=>`<div class="t"><img src="${esc(g)}" alt=""><button type="button" title="Remove" onclick="GAL_PENDING.splice(${i},1);renderGalEdit()">×</button></div>`).join(''):'<div class="hint" style="grid-column:1/-1">No gallery photos yet.</div>';
+  if(!GAL_PENDING.length){el.innerHTML='<div class="hint" style="margin:4px 0">No photos in the folder yet.</div>';return;}
+  const n=GAL_PENDING.length;
+  el.innerHTML=GAL_PENDING.map((g,i)=>`<div class="gal-row">
+    <img src="${esc(g)}" alt="Photo ${i+1}" onclick="openLightboxList(GAL_PENDING,${i})" title="View large">
+    <div class="gal-ctl">
+      <div class="gal-lbl">PHOTO ${i+1} OF ${n}${/^data:/.test(g)?' · <span class="new">NEW</span>':''}</div>
+      <div class="gal-btns">
+        <button type="button" onclick="openLightboxList(GAL_PENDING,${i})" title="View large">👁 VIEW</button>
+        <button type="button" onclick="moveGal(${i},-1)"${i===0?' disabled':''} title="Move up">▲</button>
+        <button type="button" onclick="moveGal(${i},1)"${i===n-1?' disabled':''} title="Move down">▼</button>
+        <label class="gbtn" title="Replace with a different picture">⟳ REPLACE<input type="file" accept="image/*" style="display:none" onchange="replaceGal(${i},this.files[0]);this.value=''"></label>
+        <button type="button" onclick="makeMainGal(${i})" title="Use as the main photo at the top of the card">★ MAIN</button>
+        <button type="button" class="del" onclick="GAL_PENDING.splice(${i},1);renderGalEdit()" title="Delete this photo">✕ DELETE</button>
+      </div>
+    </div></div>`).join('');
+}
+function moveGal(i,d){const j=i+d;if(j<0||j>=GAL_PENDING.length)return;[GAL_PENDING[i],GAL_PENDING[j]]=[GAL_PENDING[j],GAL_PENDING[i]];renderGalEdit();}
+async function replaceGal(i,f){if(!f)return;const err=document.getElementById('edErr');
+  try{GAL_PENDING[i]=await shrinkPhoto(f,1000);err.textContent='';renderGalEdit();}catch(e){err.textContent='That file was not a picture we can use.';}}
+async function makeMainGal(i){
+  const g=GAL_PENDING[i];let d=g;
+  if(!/^data:/.test(g)){try{const b=await (await fetch(g)).blob();d=await shrinkPhoto(new File([b],'p.jpg',{type:b.type||'image/jpeg'}));}catch(e){d=g;}}
+  PH_PENDING=d;const pv=document.getElementById('phPrev');if(pv)pv.innerHTML=`<img src="${esc(d)}" alt="">`;
+  const err=document.getElementById('edErr');if(err){err.style.color='#9fd89f';err.textContent='★ Photo '+(i+1)+' will be the main photo when you press Save.';setTimeout(()=>{err.textContent='';err.style.color='';},4000);}
 }
 async function addGalleryPhotos(files){
   const err=document.getElementById('edErr');
