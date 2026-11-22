@@ -1047,6 +1047,13 @@ function lastNameSearchLink(o){
   const v=nameVariants(o.n);const last=(v[0]||'').split(' ').slice(1).join(' ');
   return 'https://www.google.com/search?q='+encodeURIComponent('"'+last+'" obituary (Memphis OR Shelby OR Tennessee OR Mississippi OR Arkansas OR Missouri) (sheriff OR deputy)'+(o.y?' '+o.y:''));
 }
+function findAGraveNameLink(o){
+  const w=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(x=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(x)&&!/^[A-Z]\.?$/.test(x));
+  const first=w[0]||'',last=w[w.length-1]||'';
+  let u='https://www.findagrave.com/memorial/search?firstname='+encodeURIComponent(first)+'&lastname='+encodeURIComponent(last);
+  if(o.y)u+='&deathyear='+o.y+'&deathyearfilter=exact';
+  return u;
+}
 function findAGraveLink(o){
   const words=String(o.n||'').replace(/["“”'‘’()]/g,' ').trim().split(/\s+/).filter(w=>!/^(jr|sr|ii|iii|iv)\.?$/i.test(w));
   const last=words[words.length-1]||'';
@@ -1273,8 +1280,8 @@ function showDetail(idx){
         <a href="${esc(ancestryLink(o,'full'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">First + last name</a> ·
         <a href="${esc(ancestryLink(o,'last'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">Last name only</a> ·
         <a href="${esc(ancestryLink(o,'kw'))}" target="_blank" rel="noopener" style="color:var(--khaki-light)">Last name + Shelby Sheriff</a></small></span></div>`}
-      ${o.ob?'':`<a class="d-btn" href="${esc(findAGraveLink(o))}" target="_blank" rel="noopener">
-        <span class="ic">🪦</span><span>SEARCH FIND A GRAVE<small>Burial records in Tennessee${o.y?' · died '+o.y:''}</small></span></a>`}
+      <a class="d-btn" href="${esc(o.ob?findAGraveNameLink(o):findAGraveLink(o))}" target="_blank" rel="noopener">
+        <span class="ic">🪦</span><span>FIND A GRAVE<small>${o.ob?'Look up '+esc(o.n.split(' ')[0])+'’s burial record'+(o.y?' · died '+o.y:''):'Burial records in Tennessee'+(o.y?' · died '+o.y:'')}</small></span></a>
       <a class="d-btn" href="${FB_GROUP}" target="_blank" rel="noopener">
         <span class="ic">🕯</span><span>SHARE A PHOTO OR MEMORY ON FACEBOOK<small>Opens the Retirees group · a moderator approves posts</small></span></a>
       <button class="d-btn" onclick="downloadBanner(${idx})">
