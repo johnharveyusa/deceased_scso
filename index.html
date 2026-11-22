@@ -1270,7 +1270,7 @@ function showDetail(idx){
       <a class="d-btn" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
-        <span class="ic">📜</span><span>${o.ob?'ORIGINAL OBITUARY PAGE':'FIND OBITUARY ONLINE'}<small>${o.ob?'Opens the funeral home or newspaper page':'None on file yet · opens a web search'}</small></span></a>
+        <span class="ic">📜</span><span>${o.ob?(/facebook\.com/i.test(o.ob)?'MEMORIAL ON FACEBOOK':'ORIGINAL OBITUARY PAGE'):'FIND OBITUARY ONLINE'}<small>${o.ob?(/facebook\.com/i.test(o.ob)?'Opens the Facebook page where he or she is remembered':'Opens the funeral home or newspaper page'):'None on file yet · opens a web search'}</small></span></a>
       ${o.ob?'':`<a class="d-btn" href="${esc(commercialAppealLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📰</span><span>SEARCH THE COMMERCIAL APPEAL<small>Memphis newspaper obituaries</small></span></a>`}
       ${o.ob?'':`<a class="d-btn" href="${esc(lastNameSearchLink(o))}" target="_blank" rel="noopener">
