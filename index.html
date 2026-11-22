@@ -296,7 +296,7 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
     <div class="stat-chip"><b id="yodCount">0</b>&nbsp;WITH DATE</div>
     <div class="stat-chip"><b id="lodCount">0</b>&nbsp;LINE OF DUTY</div>
   </div>
-  <button id="shareBtn" onclick="showShare()">📮 SEND A PHOTO OR ARTICLE</button>
+  <button id="shareBtn" onclick="showShare()">⬆ UPLOAD A PHOTO OR ARTICLE</button>
 </header>
 
 <div id="sheetBar">
@@ -861,13 +861,15 @@ async function pickUploads(list){
 function renderUploads(){
   const el=document.getElementById('upPrev');if(!el)return;
   el.innerHTML=UP_FILES.map((d,i)=>`<div class="up-t"><img src="${d}" alt=""><button type="button" title="Remove" onclick="UP_FILES.splice(${i},1);renderUploads()">✕</button></div>`).join('');
-  document.getElementById('upPick').firstChild.textContent=UP_FILES.length?'＋ ADD ANOTHER PICTURE':'📷 CHOOSE A PICTURE';
+  document.getElementById('upPick').firstChild.textContent=UP_FILES.length?'＋ ADD ANOTHER PICTURE':'⬆ UPLOAD A PICTURE';
 }
 async function sendUpload(){
   const err=document.getElementById('shareErr'),btn=document.getElementById('upSend');
   const n=document.getElementById('shareWho').value;
   if(!n){err.textContent='Please choose the officer first (step 1).';document.getElementById('shareWho').focus();return;}
   if(!UP_FILES.length){err.textContent='Please choose a picture (step 3).';return;}
+  if(IS_ADMIN){const i=DATA.findIndex(o=>o.n===n);if(i>=0){addPhotosDirect(i,UP_FILES.slice());UP_FILES=[];}return;}
+  if(!SUBMIT_URL){err.innerHTML='Photo uploads from members are not switched on yet. For now, please use <b>“Prefer to send it by email?”</b> below.';const d=document.querySelector('.email-alt');if(d)d.open=true;return;}
   err.textContent='';btn.disabled=true;btn.textContent='SENDING…';
   const k=(document.querySelector('input[name=shareKind]:checked')||{}).value;
   try{
@@ -876,6 +878,18 @@ async function sendUpload(){
     UP_FILES=[];
     document.getElementById('upBox').innerHTML=`<div class="up-done">✓ THANK YOU<br><span>Your picture was sent for <b>${esc(n)}</b>. An administrator will add it to the page soon.</span><br><button onclick="showShare(${JSON.stringify(n).replace(/"/g,'&quot;')})">SEND ANOTHER</button></div>`;
   }catch(e){btn.disabled=false;btn.textContent='SEND IT ✓';err.textContent='It did not go through ('+e.message+'). Please try again, or use email below.';}
+}
+// Card button: pick pictures, then admins publish straight to the card; members confirm and send
+async function uploadFromCard(idx,files){
+  const list=[];for(const f of [...files].slice(0,6)){try{list.push(await shrinkPhoto(f,1600));}catch(e){}}
+  if(!list.length){alert('That file was not a picture we can use.');return;}
+  if(IS_ADMIN){addPhotosDirect(idx,list);return;}
+  UP_FILES=list;showShare(DATA[idx].n,true);
+}
+function addPhotosDirect(idx,list){
+  showDetail(idx);toggleEdit(idx);
+  list.forEach(d=>GAL_PENDING.push(d));renderGalEdit();
+  saveEdit(idx);
 }
 // ── Administrators: review member submissions ──
 async function showSubmissions(){
@@ -1198,8 +1212,8 @@ function showDetail(idx){
     <div class="d-actions">
       <button class="d-btn" onclick="copyOfficerLink(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
         <span class="ic">🔗</span><span>COPY LINK TO THIS OFFICER<small>Paste it into a Facebook post or a text, and it opens this page</small></span></button>
-      <button class="d-btn primary" onclick="showShare(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
-        <span class="ic">✉️</span><span>SEND A PHOTO OR ARTICLE<small>Send a photo, clipping or obituary by email · an administrator adds it here</small></span></button>
+      <label class="d-btn primary" style="cursor:pointer">
+        <span class="ic">⬆️</span><span>UPLOAD A PHOTO<small>Pick a picture or clipping from your computer or phone</small></span><input type="file" accept="image/*" multiple style="display:none" onchange="uploadFromCard(${idx},this.files);this.value=''"></label>
       <a class="d-btn" href="${esc(photosLink(o))}" target="_blank" rel="noopener">
         <span class="ic">📷</span><span>PHOTOS &amp; MEMORIES ON FACEBOOK<small>${o.fb?'Opens his album in the Retirees group on Facebook':'Opens Facebook and searches the Retirees group for his name'}</small></span></a>
       <a class="d-btn" href="${esc(obitLink(o))}" target="_blank" rel="noopener">
@@ -1274,11 +1288,11 @@ function copyOfficerLink(n){
   if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(u).then(done,()=>prompt('Copy this link:',u));
   else prompt('Copy this link:',u);
 }
-function showShare(pre){
-  UP_FILES=[];
+function showShare(pre,keep){
+  if(!keep)UP_FILES=[];
   const opts=DATA.slice().sort((a,b)=>a.n.localeCompare(b.n)).map(o=>`<option value="${esc(o.n)}"${o.n===pre?' selected':''}>${esc(o.n)} · ${esc(o.r)}</option>`).join('');
   document.getElementById('panelContent').innerHTML=`<div class="d-edit" style="margin-top:0">
-    <h3>📮 SEND A PHOTO OR ARTICLE</h3>
+    <h3>⬆ UPLOAD A PHOTO OR ARTICLE</h3>
     <p style="font-size:17px;color:var(--text-bright);line-height:1.5">Have a picture, an obituary, a newspaper clipping, or a date of death for one of our officers? Send it here. An administrator will add it to his or her page.</p>
     <label>1 · WHICH OFFICER?</label>
     <select id="shareWho" class="share-sel"><option value="">Choose a name…</option>${opts}</select>
@@ -1288,9 +1302,9 @@ function showShare(pre){
       <label><input type="radio" name="shareKind" value="obituary or article"> An obituary or newspaper article</label>
       <label><input type="radio" name="shareKind" value="information"> A date of death or other information</label>
     </div>
-    ${SUBMIT_URL?`<div id="upBox">
-    <label>3 · CHOOSE THE PICTURE</label>
-    <label class="gal-add" id="upPick">📷 CHOOSE A PICTURE<input type="file" accept="image/*" multiple style="display:none" onchange="pickUploads(this.files);this.value=''"></label>
+    ${`<div id="upBox">
+    <label>3 · THE PICTURE</label>
+    <label class="gal-add" id="upPick">⬆ UPLOAD A PICTURE<input type="file" accept="image/*" multiple style="display:none" onchange="pickUploads(this.files);this.value=''"></label>
     <div id="upPrev" class="up-prev"></div>
     <div class="hint">On a phone you can take a picture of a photo or clipping right now. Up to 6 pictures.</div>
     <label>4 · YOUR NAME (OPTIONAL)</label>
@@ -1301,9 +1315,8 @@ function showShare(pre){
     <div class="err" id="shareErr"></div>
     <div class="d-edit-row"><button class="save" id="upSend" style="flex:1" onclick="sendUpload()">SEND IT ✓</button></div>
     </div>
-    <details class="email-alt"><summary>Prefer to send it by email?</summary>`:''}
-    <label>${SUBMIT_URL?'':'3 · '}WHICH EMAIL DO YOU USE?</label>
-    ${SUBMIT_URL?'':'<div class="err" id="shareErr"></div>'}
+    <details class="email-alt"><summary>Prefer to send it by email?</summary>`}
+    <label>WHICH EMAIL DO YOU USE?</label>
     <div class="send-grid">
       <button onclick="sendShare('gmail')"><b>Gmail</b><small>opens Gmail in your browser</small></button>
       <button onclick="sendShare('outlook')"><b>Outlook · Hotmail</b><small>outlook.com, hotmail, live, msn</small></button>
@@ -1313,11 +1326,12 @@ function showShare(pre){
     <div class="hint" style="margin-top:14px;line-height:1.55">A new email opens with the officer's name already filled in. <b>Attach your picture or clipping</b> (the 📎 paper clip) and press <b>Send</b>.</div>
     <div class="send-manual">Nothing opened? Send it yourself to<br><b id="shareAddr">${PHOTO_EMAIL}</b>
       <button onclick="copyShareAddr(this)">COPY ADDRESS</button><br><span>Put the officer's name in the subject line.</span></div>
-    ${SUBMIT_URL?'</details>':''}
+    </details>
     ${IS_ADMIN?`<div class="send-admin"><b>Administrators:</b> you can put a photo on the card yourself. Open the officer, tap <b>✎ Edit This Officer</b>, then <b>＋ Add Photos</b>, and Save.${pre?`<br><button onclick="const i=DATA.findIndex(x=>x.n===document.getElementById('shareWho').value);if(i>=0){showDetail(i);toggleEdit(i);}">✎ EDIT THIS OFFICER NOW</button>`:''}</div>`:''}
   </div>`;
   document.getElementById('overlay').classList.add('open');
   document.getElementById('panel').scrollTop=0;
+  if(keep)renderUploads();
 }
 function sendShare(how){
   const n=document.getElementById('shareWho').value;
