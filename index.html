@@ -81,6 +81,10 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .controls{padding:9px 12px 7px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
 .search-wrap{position:relative;margin-bottom:7px}
 .search-wrap input{width:100%;background:#f4efd9;border:2px solid var(--khaki);border-radius:6px;padding:11px 12px 11px 38px;color:#1a1a12;font-family:'Crimson Pro',serif;font-size:18px;font-weight:600;outline:none;transition:border .2s}
+.search-wrap input{padding-right:96px}
+.search-wrap input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+#sClear{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:none;padding:7px 11px;border-radius:5px;border:1px solid #8a8460;background:#e4dcbc;color:#2a2716;font-family:'Cinzel',serif;font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer}
+#sClear:hover{background:#d4c484}
 .search-wrap input:focus{border-color:var(--green-accent);background:#ffffff}
 .search-wrap input::placeholder{color:#5a5438;font-style:italic;font-weight:400;opacity:1}
 .s-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text);font-size:15px;pointer-events:none}
@@ -339,7 +343,8 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
 <div class="controls">
   <div class="search-wrap">
     <span class="s-icon">🔍</span>
-    <input type="search" id="searchInput" name="eow-search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search by name, notes or S-number..." oninput="render()">
+    <input type="search" id="searchInput" name="eow-search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search by name, notes or S-number..." oninput="render();drawClr()">
+    <button type="button" id="sClear" onclick="clearSearchText()" title="Clear the search" aria-label="Clear the search">✕ CLEAR</button>
   </div>
   <div class="pills" id="pills"></div>
   <button id="toolsTgl" type="button" onclick="toggleTools()"></button>
@@ -1102,6 +1107,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   const h=document.querySelector('header h1');if(h)h.addEventListener('click',()=>{if(document.body.classList.contains('compact')){lw.scrollTop=0;si.blur();setTimeout(setCompact,60);}});
   drawToolsTgl();
 });
+function drawClr(){const si=document.getElementById('searchInput'),b=document.getElementById('sClear');if(si&&b)b.style.display=si.value?'block':'none';}
+function clearSearchText(){const si=document.getElementById('searchInput');if(!si)return;si.value='';render();drawClr();si.blur();setTimeout(()=>{if(typeof setCompact==='function')setCompact();},60);}
 function drawNeedBar(){
   const pool=DATA.filter(o=>activeRank==='all'||o.r===activeRank);
   const n=pool.filter(needsObit).length;
@@ -1118,7 +1125,7 @@ function setNeed(on,rk){
   if(rk)window.scrollTo({top:document.getElementById('listWrap').offsetTop-80,behavior:'smooth'});
 }
 function clearSearch(){
-  const s=document.getElementById('searchInput');if(s)s.value='';
+  const s=document.getElementById('searchInput');if(s)s.value='';drawClr();
   activeRank='all';needOnly=false;
   document.querySelectorAll('.pill').forEach((p,i)=>p.classList.toggle('active',i===0));
   render();
