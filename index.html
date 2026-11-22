@@ -44,6 +44,11 @@
   --lod-row2:#3a1414;
 }
 html,body{height:100%;overflow:hidden}
+#toolsTgl{display:block;width:100%;margin-top:8px;padding:7px;border-radius:6px;border:1px dashed var(--khaki-dim);background:transparent;color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
+#toolsTgl .on{color:#9fd89f}
+body.compact header .star-row,body.compact header .supertitle,body.compact header .subtitle,body.compact header .stats-row,body.compact #shareBtn,body.compact #sheetBar{display:none}
+body.compact header{padding:6px 12px}
+body.compact header h1{font-size:20px;letter-spacing:4px;margin:0;cursor:pointer}
 body{background:var(--bg);color:var(--text);font-family:'Crimson Pro',Georgia,serif;font-size:16px;display:flex;flex-direction:column}
 
 /* ── HEADER ── */
@@ -335,8 +340,11 @@ footer{text-align:center;padding:8px;font-family:'Cinzel',serif;font-size:10.5px
     <input type="search" id="searchInput" name="eow-search" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Search by name, notes or S-number..." oninput="render()">
   </div>
   <div class="pills" id="pills"></div>
+  <button id="toolsTgl" type="button" onclick="toggleTools()"></button>
+  <div id="toolsBox">
   <div id="needBar" style="margin-top:8px"></div>
   <div id="adminTools"><button id="addOfficerBtn" onclick="showAddForm()">＋ ADD OFFICER</button><button id="howtoBtn" onclick="showHowTo()">▶ HOW-TO VIDEO</button><button id="subsBtn" onclick="showSubmissions()" style="display:none">📥 NEW SUBMISSIONS</button></div>
+  </div>
 </div>
 
 <div class="list-wrap" id="listWrap"></div>
@@ -1064,6 +1072,27 @@ function buildPills(){
   document.getElementById('lodCount').textContent=DATA.filter(o=>o.lod).length;
 }
 
+// ── Phone room: fold the extra buttons, and shrink the title while searching/scrolling ──
+let TOOLS_OPEN=(()=>{try{const v=localStorage.getItem('eow_tools');if(v!==null)return v==='1';}catch(e){}return window.innerWidth>=700;})();
+function drawToolsTgl(){
+  const b=document.getElementById('toolsTgl'),box=document.getElementById('toolsBox');if(!b||!box)return;
+  box.style.display=TOOLS_OPEN?'':'none';
+  b.innerHTML=TOOLS_OPEN?'▴ FEWER OPTIONS':'▾ MORE OPTIONS'+(needOnly?' <span class="on">· OBITUARY FILTER ON</span>':'')+(IS_ADMIN?' · ADD OFFICER':'');
+}
+function toggleTools(){TOOLS_OPEN=!TOOLS_OPEN;try{localStorage.setItem('eow_tools',TOOLS_OPEN?'1':'0');}catch(e){}drawToolsTgl();}
+function setCompact(){
+  const small=window.innerWidth<700,si=document.getElementById('searchInput'),lw=document.getElementById('listWrap');
+  const on=small&&((si&&(si.value||document.activeElement===si))||(lw&&lw.scrollTop>40));
+  document.body.classList.toggle('compact',!!on);
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const si=document.getElementById('searchInput'),lw=document.getElementById('listWrap');
+  ['focus','blur','input'].forEach(ev=>si&&si.addEventListener(ev,()=>setTimeout(setCompact,50)));
+  lw&&lw.addEventListener('scroll',setCompact,{passive:true});
+  window.addEventListener('resize',setCompact);
+  const h=document.querySelector('header h1');if(h)h.addEventListener('click',()=>{if(document.body.classList.contains('compact')){lw.scrollTop=0;si.blur();setTimeout(setCompact,60);}});
+  drawToolsTgl();
+});
 function drawNeedBar(){
   const pool=DATA.filter(o=>activeRank==='all'||o.r===activeRank);
   const n=pool.filter(needsObit).length;
@@ -1071,6 +1100,7 @@ function drawNeedBar(){
   document.getElementById('needBar').innerHTML=needOnly
     ?`<button class="need-btn on" onclick="setNeed(false)">✓ SHOWING ONLY ${n} WITH NO OBITUARY${where} · SHOW ALL</button>`
     :`<button class="need-btn" onclick="setNeed(true)">📜 SHOW ONLY THOSE NEEDING AN OBITUARY${where} <span class="n">${n}</span></button>`;
+  drawToolsTgl();
 }
 function setNeed(on,rk){
   needOnly=on;
@@ -1276,6 +1306,7 @@ function setAdmin(on){
   document.getElementById('adminLink').textContent=on?'🔓 SIGN OUT':'🔒 ADMIN SIGN-IN';
   document.getElementById('adminTools').style.display=on?'flex':'none';
   const sb=document.getElementById('subsBtn');if(sb)sb.style.display=SUBMIT_URL?'':'none';
+  drawToolsTgl();
   updateSaveBar();
 }
 function adminToggle(){
