@@ -240,6 +240,11 @@ h1{font-family:'Cinzel',serif;font-size:26px;font-weight:700;color:var(--khaki);
 .send-manual button,.send-admin button{margin:6px 0 2px;padding:7px 14px;border-radius:6px;border:1px solid var(--khaki);background:rgba(212,196,132,.12);color:var(--khaki-light);font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;cursor:pointer}
 .send-manual span{font-size:13px;color:var(--text);font-style:italic}
 .send-admin{margin-top:14px;padding:12px;border:1px solid rgba(120,200,120,.5);border-radius:8px;background:rgba(80,140,80,.12);font-size:15px;line-height:1.5;color:var(--text-bright)}
+.clip-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:6px}
+.clip-t{position:relative;width:180px;height:230px;overflow:hidden;border-radius:6px;border:1px solid var(--khaki-dim);background:#fff;cursor:zoom-in}
+.clip-t img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+.clip-t span{position:absolute;left:0;right:0;bottom:0;padding:26px 6px 8px;text-align:center;font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.85))}
+.clip-t:hover{border-color:var(--khaki)}
 .gal-grid img{width:100%;aspect-ratio:3/4;object-fit:contain;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#0e110a}
 #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:400;display:none;flex-direction:column}
 #lightbox.open{display:flex}
@@ -1207,7 +1212,7 @@ function showDetail(idx){
       ${o.obt.length>900?`<button class="more" onclick="const t=document.getElementById('obitTxt');t.classList.toggle('clip');this.textContent=t.classList.contains('clip')?'READ FULL OBITUARY ▾':'SHOW LESS ▴'">READ FULL OBITUARY ▾</button>`:''}
       ${o.ob?`<div class="src">Source: <a href="${esc(safeUrl(o.ob))}" target="_blank" rel="noopener">${esc(hostOf(o.ob))}</a></div>`:''}
     </div>`:''}
-    ${(o.clip&&o.clip.length)?`<div class="d-gal"><h4>NEWSPAPER CLIPPING${o.clip.length>1?'S':''}</h4>${o.clip.map(c=>`<img src="${esc(c)}" loading="lazy" alt="Newspaper clipping about ${esc(o.n)}" onclick="openLightbox(this.src)" style="width:100%;max-width:520px;display:block;margin:8px auto;border-radius:6px;border:1px solid var(--khaki-dim);cursor:zoom-in;background:#fff">`).join('')}<div class="hint" style="text-align:center">Tap to enlarge</div></div>`:''}
+    ${(o.clip&&o.clip.length)?`<div class="d-gal"><h4>NEWSPAPER CLIPPING${o.clip.length>1?'S':''}</h4><div class="clip-grid">${o.clip.map(c=>`<div class="clip-t" onclick="openLightbox(this.querySelector('img').src)"><img src="${esc(c)}" loading="lazy" alt="Newspaper clipping about ${esc(o.n)}"><span>📰 TAP TO READ</span></div>`).join('')}</div></div>`:''}
     ${(o.gal&&o.gal.length)?`<div class="d-gal"><h4>PHOTOS (${o.gal.length})</h4><div class="gal-grid">${o.gal.map((g,i)=>`<img src="${esc(g)}" loading="lazy" alt="Photo ${i+1} of ${esc(o.n)}" onclick="openLightbox(this.src)">`).join('')}</div></div>`:''}
     <div class="d-actions">
       <button class="d-btn" onclick="copyOfficerLink(${JSON.stringify(o.n).replace(/"/g,'&quot;')})">
